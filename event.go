@@ -82,24 +82,37 @@ const (
 	// Guitar Fret-Up event
 	//
 	// Emitted by guitars if the second-upper fret-bar is pressed.
-	KeyFret_up Key = C.XWII_KEY_FRET_UP
+	KeyFretUp Key = C.XWII_KEY_FRET_UP
 
 	// Guitar Fret-Mid event
 	//
 	// Emitted by guitars if the mid fret-bar is pressed.
-	KeyFret_mid Key = C.XWII_KEY_FRET_MID
+	KeyFretMid Key = C.XWII_KEY_FRET_MID
 
 	// Guitar Fret-Low event
 	//
 	// Emitted by guitars if the second-lowest fret-bar is pressed.
-	KeyFret_low Key = C.XWII_KEY_FRET_LOW
+	KeyFretLow Key = C.XWII_KEY_FRET_LOW
 
 	// Guitar Fret-Far-Low event
 	//
 	// Emitted by guitars if the lower-most fret-bar is pressed.
-	KeyFret_far_low Key = C.XWII_KEY_FRET_FAR_LOW
+	KeyFretFarLow Key = C.XWII_KEY_FRET_FAR_LOW
 )
 
+type KeyState uint
+
+const (
+	// The key is released, alternativly KeyUp
+	StateReleased KeyState = 0
+	// The key is pressed, alternativly KeyDown
+	StatePressed KeyState = 1
+	// The key is hold down and repeats
+	StateRepeated KeyState = 2
+)
+
+// Event interface describes an event fired by Device.Dispatch(),
+// consider using a type-switch to retrieve the specific event type and data
 type Event interface {
 	Timestamp() time.Time
 }
@@ -112,8 +125,8 @@ type Event interface {
 // HOME, ONE, TWO.
 type EventKey struct {
 	timestamp time.Time
-	Code      uint
-	State     uint
+	Code      Key
+	State     KeyState
 }
 
 func (evt *EventKey) Timestamp() time.Time {
@@ -202,8 +215,8 @@ func (evt *EventMotionPlus) Timestamp() time.Time {
 // Payload type is struct xwii_event_key.
 type EventProControllerKey struct {
 	timestamp time.Time
-	Code      uint
-	State     uint
+	Code      Key
+	State     KeyState
 }
 
 func (evt *EventProControllerKey) Timestamp() time.Time {
@@ -258,8 +271,8 @@ func (evt *EventWatch) Timestamp() time.Time {
 // Payload type is struct xwii_event_key.
 type EventClassicControllerKey struct {
 	timestamp time.Time
-	Code      uint
-	State     uint
+	Code      Key
+	State     KeyState
 }
 
 func (evt *EventClassicControllerKey) Timestamp() time.Time {
@@ -295,8 +308,8 @@ func (evt *EventClassicControllerMove) Timestamp() time.Time {
 // Payload type is struct xwii_event_key.
 type EventNunchukKey struct {
 	timestamp time.Time
-	Code      uint
-	State     uint
+	Code      Key
+	State     KeyState
 }
 
 func (evt *EventNunchukKey) Timestamp() time.Time {
@@ -326,8 +339,8 @@ func (evt *EventNunchukMove) Timestamp() time.Time {
 // Payload type is struct xwii_event_key.
 type EventDrumsKey struct {
 	timestamp time.Time
-	Code      uint
-	State     uint
+	Code      Key
+	State     KeyState
 }
 
 func (evt *EventDrumsKey) Timestamp() time.Time {
@@ -357,8 +370,8 @@ func (evt *EventDrumsMove) Timestamp() time.Time {
 // Payload type is struct xwii_event_key.
 type EventGuitarKey struct {
 	timestamp time.Time
-	Code      uint
-	State     uint
+	Code      Key
+	State     KeyState
 }
 
 func (evt *EventGuitarKey) Timestamp() time.Time {
