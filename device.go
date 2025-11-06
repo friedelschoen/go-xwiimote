@@ -107,12 +107,12 @@ func (dev *Device) Free() {
 // point at the same device (symlinks may be resolved).
 //
 // @returns NULL on failure, otherwise a constant device syspath is returned.
-func (dev *Device) GetSyspath() (string, error) {
+func (dev *Device) GetSyspath() string {
 	cstr := C.xwii_iface_get_syspath(dev.cptr)
 	if cstr == nil {
-		return "", os.ErrInvalid
+		return ""
 	}
-	return C.GoString(cstr), nil
+	return C.GoString(cstr)
 }
 
 // Return file-descriptor
