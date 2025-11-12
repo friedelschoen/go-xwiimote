@@ -361,7 +361,7 @@ func watchDevice(path string, mapping map[xwiimote.Key]int) {
 	defer kb.Close()
 
 	for {
-		ev, err := poll.WaitEvent(-1)
+		ev, err := poll.Wait(-1)
 		if err != nil {
 			log.Printf("unable to poll event: %v\n", err)
 		}
@@ -391,7 +391,7 @@ func main() {
 
 	poll := xwiimote.NewPoller(monitor)
 	for {
-		path, err := poll.WaitEvent(-1)
+		path, err := poll.Wait(-1)
 		if err != nil || path == "" {
 			log.Printf("error while polling: %v\n", err)
 			continue
