@@ -238,6 +238,10 @@ func (dev *Device) Dispatch() (Event, error) {
 		return nil, cError(ret)
 	}
 
+	return makeEvent(ev)
+}
+
+func makeEvent(ev C.struct_xwii_event) (Event, error) {
 	switch ev._type {
 	case C.XWII_EVENT_KEY:
 		payload := (*C.struct_xwii_event_key)(unsafe.Pointer(&ev.v))
@@ -245,7 +249,11 @@ func (dev *Device) Dispatch() (Event, error) {
 
 	case C.XWII_EVENT_ACCEL:
 		payload := (*[C.XWII_ABS_NUM]C.struct_xwii_event_abs)(unsafe.Pointer(&ev.v))
-		return &EventAccel{timestamp: cTime(ev.time), X: int32(payload[0].x), Y: int32(payload[0].y), Z: int32(payload[0].z)}, nil
+		rev := &EventAccel{timestamp: cTime(ev.time)}
+		rev.Accel.X = int32(payload[0].x)
+		rev.Accel.Y = int32(payload[0].y)
+		rev.Accel.Z = int32(payload[0].z)
+		return rev, nil
 
 	case C.XWII_EVENT_IR:
 		payload := (*[C.XWII_ABS_NUM]C.struct_xwii_event_abs)(unsafe.Pointer(&ev.v))
@@ -266,7 +274,13 @@ func (dev *Device) Dispatch() (Event, error) {
 
 	case C.XWII_EVENT_MOTION_PLUS:
 		payload := (*[C.XWII_ABS_NUM]C.struct_xwii_event_abs)(unsafe.Pointer(&ev.v))
-		return &EventMotionPlus{timestamp: cTime(ev.time), X: int32(payload[0].x), Y: int32(payload[0].y), Z: int32(payload[0].z)}, nil
+		rev := &EventMotionPlus{timestamp: cTime(ev.time)}
+		for i := range rev.Speed {
+			rev.Speed[i].X = int32(payload[i].x)
+			rev.Speed[i].Y = int32(payload[i].y)
+			rev.Speed[i].Z = int32(payload[i].z)
+		}
+		return rev, nil
 
 	case C.XWII_EVENT_PRO_CONTROLLER_KEY:
 		payload := (*C.struct_xwii_event_key)(unsafe.Pointer(&ev.v))
@@ -316,16 +330,31 @@ func (dev *Device) Dispatch() (Event, error) {
 		return &EventDrumsKey{timestamp: cTime(ev.time), Code: Key(payload.code), State: KeyState(payload.state)}, nil
 
 	case C.XWII_EVENT_DRUMS_MOVE:
-		// TODO: add payload
-		return &EventDrumsMove{timestamp: cTime(ev.time)}, nil
+		payload := (*[C.XWII_ABS_NUM]C.struct_xwii_event_abs)(unsafe.Pointer(&ev.v))
+		rev := &EventDrumsMove{timestamp: cTime(ev.time)}
+		rev.Pad.X = int32(payload[C.XWII_DRUMS_ABS_PAD].x)
+		rev.Pad.Y = int32(payload[C.XWII_DRUMS_ABS_PAD].y)
+		rev.CymbalLeft = int32(payload[C.XWII_DRUMS_ABS_CYMBAL_LEFT].x)
+		rev.CymbalRight = int32(payload[C.XWII_DRUMS_ABS_CYMBAL_RIGHT].x)
+		rev.TomLeft = int32(payload[C.XWII_DRUMS_ABS_TOM_LEFT].x)
+		rev.TomRight = int32(payload[C.XWII_DRUMS_ABS_TOM_RIGHT].x)
+		rev.TomFarRight = int32(payload[C.XWII_DRUMS_ABS_TOM_FAR_RIGHT].x)
+		rev.Bass = int32(payload[C.XWII_DRUMS_ABS_BASS].x)
+		rev.HiHat = int32(payload[C.XWII_DRUMS_ABS_HI_HAT].x)
+		return rev, nil
 
 	case C.XWII_EVENT_GUITAR_KEY:
 		payload := (*C.struct_xwii_event_key)(unsafe.Pointer(&ev.v))
 		return &EventGuitarKey{timestamp: cTime(ev.time), Code: Key(payload.code), State: KeyState(payload.state)}, nil
 
 	case C.XWII_EVENT_GUITAR_MOVE:
-		// TODO: add payload
-		return &EventGuitarMove{timestamp: cTime(ev.time)}, nil
+		payload := (*[C.XWII_ABS_NUM]C.struct_xwii_event_abs)(unsafe.Pointer(&ev.v))
+		rev := &EventGuitarMove{timestamp: cTime(ev.time)}
+		rev.Stick.X = int32(payload[0].x)
+		rev.Stick.Y = int32(payload[0].y)
+		rev.WhammyBar = int32(payload[1].x)
+		rev.FretBar = int32(payload[2].z)
+		return rev, nil
 
 	case C.XWII_EVENT_GONE:
 		return &EventGone{timestamp: cTime(ev.time)}, nil

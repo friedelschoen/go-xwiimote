@@ -111,6 +111,12 @@ const (
 	StateRepeated KeyState = 2
 )
 
+// Vec2 represents a 2D point or vector to X and Y, may be interpreted otherwise depending on the event .
+type Vec2 struct{ X, Y int32 }
+
+// Vec3 represents a 3D point or vector to X, Y and Z, may be interpreted otherwise depending on the event.
+type Vec3 struct{ X, Y, Z int32 }
+
 // Event interface describes an event fired by Device.Dispatch(),
 // consider using a type-switch to retrieve the specific event type and data
 type Event interface {
@@ -142,7 +148,7 @@ func (evt *EventKey) Timestamp() time.Time {
 // data!
 type EventAccel struct {
 	timestamp time.Time
-	X, Y, Z   int32
+	Accel     Vec3
 }
 
 func (evt *EventAccel) Timestamp() time.Time {
@@ -168,7 +174,7 @@ func (evt *EventIR) Timestamp() time.Time {
 	return evt.timestamp
 }
 
-type IRSlot struct{ X, Y int32 }
+type IRSlot Vec2
 
 func (slot IRSlot) Valid() bool {
 	return slot.X != 1023 || slot.Y != 1023
@@ -199,7 +205,7 @@ func (evt *EventBalanceBoard) Timestamp() time.Time {
 // motion-events in the 3 dimensions.
 type EventMotionPlus struct {
 	timestamp time.Time
-	X, Y, Z   int32
+	Speed     [3]Vec3
 }
 
 func (evt *EventMotionPlus) Timestamp() time.Time {
@@ -231,7 +237,7 @@ func (evt *EventProControllerKey) Timestamp() time.Time {
 // position of both analog sticks.
 type EventProControllerMove struct {
 	timestamp time.Time
-	Sticks    [2]struct{ X, Y int32 }
+	Sticks    [2]Vec2
 }
 
 func (evt *EventProControllerMove) Timestamp() time.Time {
@@ -292,7 +298,7 @@ func (evt *EventClassicControllerKey) Timestamp() time.Time {
 type EventClassicControllerMove struct {
 	timestamp time.Time
 	// left analogue stick, right analogue stick, tl/tr buttons */
-	Sticks [3]struct{ X, Y int32 }
+	Sticks [3]Vec2
 }
 
 func (evt *EventClassicControllerMove) Timestamp() time.Time {
@@ -324,8 +330,8 @@ func (evt *EventNunchukKey) Timestamp() time.Time {
 // array element contains the accelerometer information.
 type EventNunchukMove struct {
 	timestamp time.Time
-	Stick     struct{ X, Y int32 }
-	Accel     struct{ X, Y, Z int32 }
+	Stick     Vec2
+	Accel     Vec3
 }
 
 func (evt *EventNunchukMove) Timestamp() time.Time {
@@ -354,7 +360,15 @@ func (evt *EventDrumsKey) Timestamp() time.Time {
 // enum xwii_drums_abs and each of them contains the corresponding
 // stick-movement or drum-pressure values.
 type EventDrumsMove struct {
-	timestamp time.Time
+	timestamp   time.Time
+	Pad         Vec2
+	CymbalLeft  int32
+	CymbalRight int32
+	TomLeft     int32
+	TomRight    int32
+	TomFarRight int32
+	Bass        int32
+	HiHat       int32
 }
 
 func (evt *EventDrumsMove) Timestamp() time.Time {
@@ -387,6 +401,9 @@ func (evt *EventGuitarKey) Timestamp() time.Time {
 // positioning information as x-value.
 type EventGuitarMove struct {
 	timestamp time.Time
+	Stick     Vec2
+	WhammyBar int32
+	FretBar   int32
 }
 
 func (evt *EventGuitarMove) Timestamp() time.Time {
