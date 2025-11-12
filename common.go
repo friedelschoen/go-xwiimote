@@ -29,7 +29,8 @@ func cTime(t C.struct_timeval) time.Time {
 	return time.Unix(int64(t.tv_sec), int64(t.tv_usec))
 }
 
-// cStringCopy takes a NUL-terminated C-string and copyies it into a string
+// cStringCopy takes a NUL-terminated C-string and copyies it into a string and the cstr is freed afterwards.
+// If the input is nil it returns an empty string.
 func cStringCopy(cstr *C.char) string {
 	if cstr == nil {
 		return ""

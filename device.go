@@ -76,7 +76,7 @@ type Device struct {
 //
 // @returns 0 on success, negative error code on failure
 func NewDevice(syspath string) (*Device, error) {
-	var dev Device
+	dev := new(Device)
 	csyspath := C.CString(syspath)
 	defer C.free(unsafe.Pointer(csyspath))
 
@@ -84,18 +84,18 @@ func NewDevice(syspath string) (*Device, error) {
 	if ret != 0 {
 		return nil, cError(ret)
 	}
-	runtime.SetFinalizer(&dev, func(i *Device) {
+	runtime.SetFinalizer(dev, func(i *Device) {
 		i.Free()
 	})
 
-	return &dev, cError(ret)
+	return dev, cError(ret)
 }
 
 func (dev *Device) Free() {
 	if dev.cptr == nil {
 		return
 	}
-	runtime.SetFinalizer(&dev, nil)
+	runtime.SetFinalizer(dev, nil)
 	C.xwii_iface_unref(dev.cptr)
 	dev.cptr = nil
 }
@@ -124,7 +124,7 @@ func (dev *Device) GetSyspath() string {
 // xwii_iface_dispatch() whenever it is readable.
 //
 // This function always returns a valid file-descriptor.
-func (dev *Device) GetFD() int {
+func (dev *Device) FD() int {
 	return int(C.xwii_iface_get_fd(dev.cptr))
 }
 
@@ -228,24 +228,27 @@ func (dev *Device) Available() Interface {
 //
 // @returns 0 on success, -EAGAIN if no event can be read and @p ev is non-NULL
 // and a negative error-code on failure
-func (dev *Device) Dispatch() (Event, error) {
+func (dev *Device) Poll() (Event, bool, error) {
 	var ev C.struct_xwii_event
 	ret := C.xwii_iface_dispatch(dev.cptr, &ev, C.size_t(unsafe.Sizeof(ev)))
 	if ret == -C.EAGAIN {
-		return nil, nil
+		return nil, false, ErrRetry
 	}
 	if ret != 0 {
-		return nil, cError(ret)
+		return nil, false, cError(ret)
 	}
-
-	return makeEvent(ev)
+	event := makeEvent(ev)
+	if event == nil {
+		return nil, false, os.ErrInvalid
+	}
+	return event, true, nil
 }
 
-func makeEvent(ev C.struct_xwii_event) (Event, error) {
+func makeEvent(ev C.struct_xwii_event) Event {
 	switch ev._type {
 	case C.XWII_EVENT_KEY:
 		payload := (*C.struct_xwii_event_key)(unsafe.Pointer(&ev.v))
-		return &EventKey{timestamp: cTime(ev.time), Code: Key(payload.code), State: KeyState(payload.state)}, nil
+		return &EventKey{timestamp: cTime(ev.time), Code: Key(payload.code), State: KeyState(payload.state)}
 
 	case C.XWII_EVENT_ACCEL:
 		payload := (*[C.XWII_ABS_NUM]C.struct_xwii_event_abs)(unsafe.Pointer(&ev.v))
@@ -253,7 +256,7 @@ func makeEvent(ev C.struct_xwii_event) (Event, error) {
 		rev.Accel.X = int32(payload[0].x)
 		rev.Accel.Y = int32(payload[0].y)
 		rev.Accel.Z = int32(payload[0].z)
-		return rev, nil
+		return rev
 
 	case C.XWII_EVENT_IR:
 		payload := (*[C.XWII_ABS_NUM]C.struct_xwii_event_abs)(unsafe.Pointer(&ev.v))
@@ -262,7 +265,7 @@ func makeEvent(ev C.struct_xwii_event) (Event, error) {
 			rev.Slots[i].X = int32(payload[i].x)
 			rev.Slots[i].Y = int32(payload[i].y)
 		}
-		return rev, nil
+		return rev
 
 	case C.XWII_EVENT_BALANCE_BOARD:
 		payload := (*[C.XWII_ABS_NUM]C.struct_xwii_event_abs)(unsafe.Pointer(&ev.v))
@@ -270,7 +273,7 @@ func makeEvent(ev C.struct_xwii_event) (Event, error) {
 		for i := range rev.Weights {
 			rev.Weights[i] = int32(payload[i].x)
 		}
-		return rev, nil
+		return rev
 
 	case C.XWII_EVENT_MOTION_PLUS:
 		payload := (*[C.XWII_ABS_NUM]C.struct_xwii_event_abs)(unsafe.Pointer(&ev.v))
@@ -280,11 +283,11 @@ func makeEvent(ev C.struct_xwii_event) (Event, error) {
 			rev.Speed[i].Y = int32(payload[i].y)
 			rev.Speed[i].Z = int32(payload[i].z)
 		}
-		return rev, nil
+		return rev
 
 	case C.XWII_EVENT_PRO_CONTROLLER_KEY:
 		payload := (*C.struct_xwii_event_key)(unsafe.Pointer(&ev.v))
-		return &EventProControllerKey{timestamp: cTime(ev.time), Code: Key(payload.code), State: KeyState(payload.state)}, nil
+		return &EventProControllerKey{timestamp: cTime(ev.time), Code: Key(payload.code), State: KeyState(payload.state)}
 
 	case C.XWII_EVENT_PRO_CONTROLLER_MOVE:
 		payload := (*[C.XWII_ABS_NUM]C.struct_xwii_event_abs)(unsafe.Pointer(&ev.v))
@@ -293,14 +296,14 @@ func makeEvent(ev C.struct_xwii_event) (Event, error) {
 			rev.Sticks[i].X = int32(payload[i].x)
 			rev.Sticks[i].Y = int32(payload[i].y)
 		}
-		return rev, nil
+		return rev
 
 	case C.XWII_EVENT_WATCH:
-		return &EventWatch{timestamp: cTime(ev.time)}, nil
+		return &EventWatch{timestamp: cTime(ev.time)}
 
 	case C.XWII_EVENT_CLASSIC_CONTROLLER_KEY:
 		payload := (*C.struct_xwii_event_key)(unsafe.Pointer(&ev.v))
-		return &EventClassicControllerKey{timestamp: cTime(ev.time), Code: Key(payload.code), State: KeyState(payload.state)}, nil
+		return &EventClassicControllerKey{timestamp: cTime(ev.time), Code: Key(payload.code), State: KeyState(payload.state)}
 
 	case C.XWII_EVENT_CLASSIC_CONTROLLER_MOVE:
 		payload := (*[C.XWII_ABS_NUM]C.struct_xwii_event_abs)(unsafe.Pointer(&ev.v))
@@ -309,11 +312,11 @@ func makeEvent(ev C.struct_xwii_event) (Event, error) {
 			rev.Sticks[i].X = int32(payload[i].x)
 			rev.Sticks[i].Y = int32(payload[i].y)
 		}
-		return rev, nil
+		return rev
 
 	case C.XWII_EVENT_NUNCHUK_KEY:
 		payload := (*C.struct_xwii_event_key)(unsafe.Pointer(&ev.v))
-		return &EventNunchukKey{timestamp: cTime(ev.time), Code: Key(payload.code), State: KeyState(payload.state)}, nil
+		return &EventNunchukKey{timestamp: cTime(ev.time), Code: Key(payload.code), State: KeyState(payload.state)}
 
 	case C.XWII_EVENT_NUNCHUK_MOVE:
 		payload := (*[C.XWII_ABS_NUM]C.struct_xwii_event_abs)(unsafe.Pointer(&ev.v))
@@ -323,11 +326,11 @@ func makeEvent(ev C.struct_xwii_event) (Event, error) {
 		rev.Accel.X = int32(payload[1].x)
 		rev.Accel.Y = int32(payload[1].y)
 		rev.Accel.Z = int32(payload[1].z)
-		return rev, nil
+		return rev
 
 	case C.XWII_EVENT_DRUMS_KEY:
 		payload := (*C.struct_xwii_event_key)(unsafe.Pointer(&ev.v))
-		return &EventDrumsKey{timestamp: cTime(ev.time), Code: Key(payload.code), State: KeyState(payload.state)}, nil
+		return &EventDrumsKey{timestamp: cTime(ev.time), Code: Key(payload.code), State: KeyState(payload.state)}
 
 	case C.XWII_EVENT_DRUMS_MOVE:
 		payload := (*[C.XWII_ABS_NUM]C.struct_xwii_event_abs)(unsafe.Pointer(&ev.v))
@@ -341,11 +344,11 @@ func makeEvent(ev C.struct_xwii_event) (Event, error) {
 		rev.TomFarRight = int32(payload[C.XWII_DRUMS_ABS_TOM_FAR_RIGHT].x)
 		rev.Bass = int32(payload[C.XWII_DRUMS_ABS_BASS].x)
 		rev.HiHat = int32(payload[C.XWII_DRUMS_ABS_HI_HAT].x)
-		return rev, nil
+		return rev
 
 	case C.XWII_EVENT_GUITAR_KEY:
 		payload := (*C.struct_xwii_event_key)(unsafe.Pointer(&ev.v))
-		return &EventGuitarKey{timestamp: cTime(ev.time), Code: Key(payload.code), State: KeyState(payload.state)}, nil
+		return &EventGuitarKey{timestamp: cTime(ev.time), Code: Key(payload.code), State: KeyState(payload.state)}
 
 	case C.XWII_EVENT_GUITAR_MOVE:
 		payload := (*[C.XWII_ABS_NUM]C.struct_xwii_event_abs)(unsafe.Pointer(&ev.v))
@@ -354,12 +357,12 @@ func makeEvent(ev C.struct_xwii_event) (Event, error) {
 		rev.Stick.Y = int32(payload[0].y)
 		rev.WhammyBar = int32(payload[1].x)
 		rev.FretBar = int32(payload[2].z)
-		return rev, nil
+		return rev
 
 	case C.XWII_EVENT_GONE:
-		return &EventGone{timestamp: cTime(ev.time)}, nil
+		return &EventGone{timestamp: cTime(ev.time)}
 	}
-	return nil, os.ErrInvalid
+	return nil
 }
 
 // Make background work

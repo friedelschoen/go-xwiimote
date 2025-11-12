@@ -5,14 +5,12 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"strings"
-	"syscall"
-	"time"
 
 	"github.com/bendahl/uinput"
 	"github.com/friedelschoen/go-xwiimote"
-	"golang.org/x/sys/unix"
 )
 
 var wiiKeynames = map[string]xwiimote.Key{
@@ -344,10 +342,17 @@ func loadMapping(r io.Reader) map[xwiimote.Key]int {
 	return mapping
 }
 
-func main() {
-	flag.Parse()
+func watchDevice(path string, mapping map[xwiimote.Key]int) {
+	dev, err := xwiimote.NewDevice(path)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: unable to get device: %s", err)
+	}
+	defer dev.Free()
+	poll := xwiimote.NewPoller(dev)
 
-	mapping := loadMapping(os.Stdin)
+	if err := dev.Open(xwiimote.InterfaceCore); err != nil {
+		fmt.Fprintf(os.Stderr, "error: unable to open device: %s", err)
+	}
 
 	kb, err := uinput.CreateKeyboard("/dev/uinput", []byte(*kbname))
 	if err != nil {
@@ -355,56 +360,42 @@ func main() {
 	}
 	defer kb.Close()
 
-	monitor := xwiimote.NewMonitor(true, false)
-	var path string
-	for path == "" {
-		path = monitor.Poll()
-		time.Sleep(100 * time.Millisecond)
+	for {
+		ev, err := poll.WaitEvent(-1)
+		if err != nil {
+			log.Printf("unable to poll event: %v\n", err)
+		}
+		switch ev := ev.(type) {
+		case *xwiimote.EventKey:
+			realkey, ok := mapping[ev.Code]
+			if !ok {
+				continue
+			}
+			switch ev.State {
+			case xwiimote.StatePressed:
+				kb.KeyDown(realkey)
+			case xwiimote.StateReleased:
+				kb.KeyUp(realkey)
+			}
+		}
 	}
+}
+
+func main() {
+	flag.Parse()
+
+	mapping := loadMapping(os.Stdin)
+
+	monitor := xwiimote.NewMonitor(false)
 	defer monitor.Free()
 
-	dev, err := xwiimote.NewDevice(path)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: unable to get device: %s", err)
-	}
-	defer dev.Free()
-
-	if err := dev.Open(xwiimote.InterfaceCore); err != nil {
-		fmt.Fprintf(os.Stderr, "error: unable to open device: %s", err)
-	}
-
-	fds := [...]unix.PollFd{{
-		Fd:     int32(dev.GetFD()),
-		Events: unix.POLLIN,
-	}}
-
+	poll := xwiimote.NewPoller(monitor)
 	for {
-		_, err := unix.Poll(fds[:], -1)
-		if err != nil && err.(syscall.Errno) != syscall.EINTR {
-			fmt.Fprintf(os.Stderr, "error: unable to wait for events: %s", err)
+		path, err := poll.WaitEvent(-1)
+		if err != nil || path == "" {
+			log.Printf("error while polling: %v\n", err)
+			continue
 		}
-
-		for {
-			ev, err := dev.Dispatch()
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "error: unable to wait for events: %s", err)
-			}
-			if ev == nil {
-				break
-			}
-			switch ev := ev.(type) {
-			case *xwiimote.EventKey:
-				realkey, ok := mapping[ev.Code]
-				if !ok {
-					continue
-				}
-				switch ev.State {
-				case xwiimote.StatePressed:
-					kb.KeyDown(realkey)
-				case xwiimote.StateReleased:
-					kb.KeyUp(realkey)
-				}
-			}
-		}
+		watchDevice(path, mapping)
 	}
 }

@@ -29,21 +29,21 @@ type Monitor struct {
 // system for new hotplug events so new devices can be detected.
 //
 // A new monitor always has a ref-count of 1.
-func NewMonitor(hotplug, direct bool) *Monitor {
-	var mon Monitor
-	mon.cptr = C.xwii_monitor_new(C.bool(hotplug), C.bool(direct))
+func NewMonitor(direct bool) *Monitor {
+	mon := new(Monitor)
+	mon.cptr = C.xwii_monitor_new(true, C.bool(direct))
 
-	runtime.SetFinalizer(&mon, func(m *Monitor) {
+	runtime.SetFinalizer(mon, func(m *Monitor) {
 		m.Free()
 	})
-	return &mon
+	return mon
 }
 
 func (mon *Monitor) Free() {
 	if mon.cptr == nil {
 		return
 	}
-	runtime.SetFinalizer(&mon, nil)
+	runtime.SetFinalizer(mon, nil)
 	C.xwii_monitor_unref(mon.cptr)
 	mon.cptr = nil
 }
@@ -62,9 +62,9 @@ func (mon *Monitor) Free() {
 // you need this function only if you want to watch the system for hotplug
 // events. Whenever this descriptor is readable, you should call
 // xwii_monitor_poll() to read new incoming events.
-func (mon *Monitor) GetFD(blocking bool) (int, bool) {
-	ret := C.xwii_monitor_get_fd(mon.cptr, C.bool(blocking))
-	return int(ret), ret != -1
+func (mon *Monitor) FD() int {
+	ret := C.xwii_monitor_get_fd(mon.cptr, false)
+	return int(ret)
 }
 
 // Read incoming events
@@ -86,7 +86,10 @@ func (mon *Monitor) GetFD(blocking bool) (int, bool) {
 // if no new event is available.
 //
 // The returned string must be freed with free() by the caller.
-func (mon *Monitor) Poll() string {
+func (mon *Monitor) Poll() (string, bool, error) {
 	path := C.xwii_monitor_poll(mon.cptr)
-	return cStringCopy(path)
+	if path == nil {
+		return "", false, ErrRetry
+	}
+	return cStringCopy(path), false, nil
 }
