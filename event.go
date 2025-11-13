@@ -120,12 +120,11 @@ type Vec3 struct{ X, Y, Z int32 }
 // Event interface describes an event fired by Device.Dispatch(),
 // consider using a type-switch to retrieve the specific event type and data
 type Event interface {
+	// Timestamp returns the time of firing.
 	Timestamp() time.Time
 }
 
-// Core-interface key event
-//
-// The payload of such events is struct xwii_event_key. Valid
+// EventKey is fired whenever a key is pressed or released. Valid
 // key-events include all the events reported by the core-interface,
 // which is normally only LEFT, RIGHT, UP, DOWN, A, B, PLUS, MINUS,
 // HOME, ONE, TWO.
@@ -139,11 +138,7 @@ func (evt *EventKey) Timestamp() time.Time {
 	return evt.timestamp
 }
 
-// Accelerometer event
-//
-// Provides accelerometer data. Payload is struct xwii_event_abs
-// and only the first element in the abs-array is used. The x, y and z
-// fields contain the accelerometer data.
+// EventAccel provides accelerometer data.
 // Note that the accelerometer reports acceleration data, not speed
 // data!
 type EventAccel struct {
@@ -155,15 +150,11 @@ func (evt *EventAccel) Timestamp() time.Time {
 	return evt.timestamp
 }
 
-// IR-Camera event
-//
-// Provides IR-camera events. The camera can track up two four IR
+// EventIR provides IR-camera events. The camera can track up two four IR
 // sources. As long as a single source is tracked, it stays at it's
-// pre-allocated slot. The four available slots are reported as
-// struct xwii_event_abs
-// payload. The x and y fields contain the position of each slot.
+// pre-allocated slot.
 //
-// Use xwii_event_ir_is_valid() to see whether a specific slot is
+// Use IRSlot.Valid() to see whether a specific slot is
 // currently valid or whether it currently doesn't track any IR source.
 type EventIR struct {
 	timestamp time.Time
@@ -174,19 +165,16 @@ func (evt *EventIR) Timestamp() time.Time {
 	return evt.timestamp
 }
 
+// IRSlot describes Infra-Red Tracking on a WiiMote
 type IRSlot Vec2
 
+// Valid returns whether the slot has a source to track.
 func (slot IRSlot) Valid() bool {
 	return slot.X != 1023 || slot.Y != 1023
 }
 
-// Balance-Board event
-//
-// Provides balance-board weight data. Four sensors report weight-data
-// for each of the four edges of the board. The data is available as
-// struct xwii_event_abs
-// payload. The x fields of the first four array-entries contain the
-// weight-value.
+// EventBalanceBoard provides balance-board weight data. Four sensors report weight-data
+// for each of the four edges of the board.
 type EventBalanceBoard struct {
 	timestamp time.Time
 	Weights   [4]int32
@@ -196,13 +184,8 @@ func (evt *EventBalanceBoard) Timestamp() time.Time {
 	return evt.timestamp
 }
 
-// Motion-Plus event
-//
-// Motion-Plus gyroscope events. These describe rotational speed, not
-// acceleration, of the motion-plus extension. The payload is available
-// as struct xwii_event_abs
-// and the x, y and z field of the first array-element describes the
-// motion-events in the 3 dimensions.
+// EventMotionPlus provides gyroscope events. These describe rotational speed, not
+// acceleration, of the motion-plus extension.
 type EventMotionPlus struct {
 	timestamp time.Time
 	Speed     [3]Vec3
@@ -212,9 +195,8 @@ func (evt *EventMotionPlus) Timestamp() time.Time {
 	return evt.timestamp
 }
 
-// Pro-Controller key event
-//
-// Button events of the pro-controller are reported via this interface
+// EventProControllerKey provides button events of the pro-controller
+// and are reported via this interface
 // and not via the core-interface (which only reports core-buttons).
 // Valid buttons include: LEFT, RIGHT, UP, DOWN, PLUS, MINUS, HOME, X,
 // Y, A, B, TR, TL, ZR, ZL, THUMBL, THUMBR.
@@ -229,12 +211,8 @@ func (evt *EventProControllerKey) Timestamp() time.Time {
 	return evt.timestamp
 }
 
-// Pro-Controller movement event
-//
-// Movement of analog sticks are reported via this event. The payload
-// is a struct xwii_event_abs
-// and the first two array elements contain the absolute x and y
-// position of both analog sticks.
+// EventProControllerMove provides movement of analog sticks on the pro-controller and is
+// reported via this event.
 type EventProControllerMove struct {
 	timestamp time.Time
 	Sticks    [2]Vec2
@@ -244,17 +222,15 @@ func (evt *EventProControllerMove) Timestamp() time.Time {
 	return evt.timestamp
 }
 
-// Hotplug Event
-//
-// This event is sent whenever an extension was hotplugged (plugged or
+// EventWatch is sent whenever an extension was hotplugged (plugged or
 // unplugged), a device-detection finished or some other static data
-// changed which cannot be monitored separately. No payload is provided.
+// changed which cannot be monitored separately.
 // An application should check what changed by examining the device is
 // testing whether all required interfaces are still available.
 // Non-hotplug aware devices may discard this event.
 //
 // This is only returned if you explicitly watched for hotplug events.
-// See xwii_iface_watch().
+// See Device.Watch().
 //
 // This event is also returned if an interface is closed because the
 // kernel closed our file-descriptor (for whatever reason). This is
@@ -267,14 +243,12 @@ func (evt *EventWatch) Timestamp() time.Time {
 	return evt.timestamp
 }
 
-// Classic Controller key event
-//
+// EventClassicControllerKey provides Classic Controller key events.
 // Button events of the classic controller are reported via this
 // interface and not via the core-interface (which only reports
 // core-buttons).
 // Valid buttons include: LEFT, RIGHT, UP, DOWN, PLUS, MINUS, HOME, X,
 // Y, A, B, TR, TL, ZR, ZL.
-// Payload type is struct xwii_event_key.
 type EventClassicControllerKey struct {
 	timestamp time.Time
 	Code      Key
@@ -285,8 +259,7 @@ func (evt *EventClassicControllerKey) Timestamp() time.Time {
 	return evt.timestamp
 }
 
-// Classic Controller movement event
-//
+// EventClassicControllerMove provides Classic Controller movement events.
 // Movement of analog sticks are reported via this event. The payload
 // is a struct xwii_event_abs and the first two array elements contain
 // the absolute x and y position of both analog sticks.
@@ -296,22 +269,22 @@ func (evt *EventClassicControllerKey) Timestamp() time.Time {
 // TL/TR triggers, in which case these read 0 or MAX (63). The digital
 // TL/TR buttons are always reported correctly.
 type EventClassicControllerMove struct {
-	timestamp time.Time
-	// left analogue stick, right analogue stick, tl/tr buttons */
-	Sticks [3]Vec2
+	timestamp     time.Time
+	StickLeft     Vec2
+	StickRight    Vec2
+	ShoulderLeft  int32
+	ShoulderRight int32
 }
 
 func (evt *EventClassicControllerMove) Timestamp() time.Time {
 	return evt.timestamp
 }
 
-// Nunchuk key event
-//
+// EventNunchukKey provides Nunchuk key events.
 // Button events of the nunchuk controller are reported via this
 // interface and not via the core-interface (which only reports
 // core-buttons).
 // Valid buttons include: C, Z
-// Payload type is struct xwii_event_key.
 type EventNunchukKey struct {
 	timestamp time.Time
 	Code      Key
@@ -322,8 +295,7 @@ func (evt *EventNunchukKey) Timestamp() time.Time {
 	return evt.timestamp
 }
 
-// Nunchuk movement event
-//
+// EventNunchukMove provides Nunchuk movement events.
 // Movement events of the nunchuk controller are reported via this
 // interface. Payload is of type struct xwii_event_abs. The first array
 // element contains the x/y positions of the analog stick. The second
@@ -338,11 +310,9 @@ func (evt *EventNunchukMove) Timestamp() time.Time {
 	return evt.timestamp
 }
 
-// Drums key event
-//
+// EventDrumsKey provides Drums key events.
 // Button events for drums controllers. Valid buttons are PLUS and MINUS
 // for the +/- buttons on the center-bar.
-// Payload type is struct xwii_event_key.
 type EventDrumsKey struct {
 	timestamp time.Time
 	Code      Key
@@ -353,12 +323,8 @@ func (evt *EventDrumsKey) Timestamp() time.Time {
 	return evt.timestamp
 }
 
-// Drums movement event
-//
-// Movement and pressure events for drums controllers. Payload is of
-// type struct xwii_event_abs. The indices are describe as
-// enum xwii_drums_abs and each of them contains the corresponding
-// stick-movement or drum-pressure values.
+// EventDrumsMove provides Drums movement event
+// Movement and pressure events for drums controllers.
 type EventDrumsMove struct {
 	timestamp   time.Time
 	Pad         Vec2
@@ -375,13 +341,11 @@ func (evt *EventDrumsMove) Timestamp() time.Time {
 	return evt.timestamp
 }
 
-// Guitar key event
-//
+// EventGuitarKey provides Guitar key events
 // Button events for guitar controllers. Valid buttons are HOME and PLUS
 // for the StarPower/Home button and the + button. Furthermore, you get
 // FRET_FAR_UP, FRET_UP, FRET_MID, FRET_LOW, FRET_FAR_LOW for fret
 // activity and STRUM_BAR_UP and STRUM_BAR_LOW for the strum bar.
-// Payload type is struct xwii_event_key.
 type EventGuitarKey struct {
 	timestamp time.Time
 	Code      Key
@@ -392,13 +356,8 @@ func (evt *EventGuitarKey) Timestamp() time.Time {
 	return evt.timestamp
 }
 
-// Guitar movement event
-//
-// Movement information for guitar controllers. Payload is of type
-// struct xwii_event_abs. The first element contains X and Y direction
-// of the analog stick. The second element contains whammy-bar movement
-// information as x-value. The third element contains fret-bar absolute
-// positioning information as x-value.
+// EventGuitarMove provides Guitar movement events.
+// Movement information for guitar controllers.
 type EventGuitarMove struct {
 	timestamp time.Time
 	Stick     Vec2
@@ -410,13 +369,12 @@ func (evt *EventGuitarMove) Timestamp() time.Time {
 	return evt.timestamp
 }
 
-// Removal Event
-//
+// EventGone provides Removal Event.
 // This event is sent whenever the device was removed. No payload is provided.
 // Non-hotplug aware applications may discard this event.
 // This is only returned if you explicitly watched for hotplug events.
 //
-// See xwii_iface_watch().
+// See Device.Watch().
 type EventGone struct {
 	timestamp time.Time
 }

@@ -7,31 +7,20 @@ import (
 	"runtime"
 )
 
-// Enumerator object
-//
-// Each object describes a separate monitor. A single monitor must not be
-// used from multiple threads without locking. Different monitors are
-// independent of each other and can be used simultaneously.
+// Enumerator describes a single one-time enumerator for xwiimote-devices.
+// Enumerators are not thread-safe.
 type Enumerator struct {
 	cptr *C.struct_xwii_monitor
 }
 
-// Create a new monitor
+// NewEnumerator creates a new enumerator.
 //
-// Creates a new monitor and returns a pointer to the opaque object. NULL is
-// returned on failure.
+// A monitor always provides all devices that are available on a system.
 //
-// @param[in] poll True if this monitor should watch for hotplug events
-// @param[in] direct True if kernel uevents should be used instead of udevd
-//
-// A monitor always provides all devices that are available on a system. If
-// @p poll is true, the monitor also sets up a system-monitor to watch the
-// system for new hotplug events so new devices can be detected.
-//
-// A new monitor always has a ref-count of 1.
-func NewEnumerator(direct bool) *Enumerator {
+// The object and underlying structure is freed automatically by default.
+func NewEnumerator(typ MonitorType) *Enumerator {
 	enum := new(Enumerator)
-	enum.cptr = C.xwii_monitor_new(false, C.bool(direct))
+	enum.cptr = C.xwii_monitor_new(false, C.bool(typ))
 
 	runtime.SetFinalizer(enum, func(e *Enumerator) {
 		e.Free()
@@ -39,6 +28,8 @@ func NewEnumerator(direct bool) *Enumerator {
 	return enum
 }
 
+// Free unreferences the enumerator and frees the underlying structure.
+// Calling Free is not mandatory and is done automatically by default.
 func (enum *Enumerator) Free() {
 	if enum.cptr == nil {
 		return
@@ -48,17 +39,11 @@ func (enum *Enumerator) Free() {
 	enum.cptr = nil
 }
 
-// Read incoming events
-//
-// @param[in] monitor A valid monitor object
-//
-// This returns a single device-name on each call. A device-name is actually
+// Next returns a single device-name on each call. A device-name is actually
 // an absolute sysfs path to the device's root-node. This is normally a path
 // to /sys/bus/hid/devices/[dev]/. You can use this path to create a new
-// struct xwii_iface object.
-//
-// After a monitor was created, this function returns all currently available
-// devices. After all devices have been returned, this function returns an empty string.
+// Device object. If the enumerator is exhausted an empty string is returned and
+// no new elements will be provided.
 func (enum *Enumerator) Next() string {
 	path := C.xwii_monitor_poll(enum.cptr)
 	return cStringCopy(path)

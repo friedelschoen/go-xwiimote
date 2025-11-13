@@ -8,7 +8,8 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-var ErrRetry = errors.New("invalid polling, should retrying")
+// ErrPollAgain is returned by a PollDriver to mark the poll invalid.
+var ErrPollAgain = errors.New("invalid polling, should retrying")
 
 // PollDriver defines a source that can be polled for events or data.
 type PollDriver[T any] interface {
@@ -65,7 +66,7 @@ func (p *Poller[T]) Wait(timeout time.Duration) (T, error) {
 			}
 		}
 		ev, cont, err := p.drv.Poll()
-		if errors.Is(err, ErrRetry) {
+		if errors.Is(err, ErrPollAgain) {
 			p.dontwait = true
 			time.Sleep(10 * time.Millisecond)
 			continue
@@ -78,7 +79,7 @@ func (p *Poller[T]) Wait(timeout time.Duration) (T, error) {
 func (p *Poller[T]) drain(ch chan<- T) {
 	for {
 		ev, cont, err := p.drv.Poll()
-		if errors.Is(err, ErrRetry) {
+		if errors.Is(err, ErrPollAgain) {
 			time.Sleep(10 * time.Millisecond)
 			continue
 		}
