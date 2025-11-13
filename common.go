@@ -9,6 +9,8 @@ import (
 	"unsafe"
 )
 
+//go:generate stringer -type InterfaceType,Led,Key,KeyState,MonitorType -output stringer.go
+
 // cError takes an integer error code.
 //
 // code == 0 -> nil

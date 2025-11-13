@@ -8,6 +8,7 @@ import "C"
 import (
 	"os"
 	"runtime"
+	"strings"
 	"unsafe"
 )
 
@@ -40,6 +41,7 @@ const (
 	InterfaceWritable InterfaceType = C.XWII_IFACE_WRITABLE
 )
 
+// Name returns the original name of that interface.
 func (dev InterfaceType) Name() string {
 	cstr := C.xwii_get_iface_name(C.uint(dev))
 	if cstr == nil {
@@ -48,6 +50,7 @@ func (dev InterfaceType) Name() string {
 	return C.GoString(cstr)
 }
 
+// Led described a Led of an device. The leds are counted left-to-right.
 type Led uint
 
 const (
@@ -376,26 +379,28 @@ func (dev *Device) GetBattery() (uint8, error) {
 	return uint8(state), cError(ret)
 }
 
-// GetDevType returns the device type.
+// GetDevType returns the device type. If the device type cannot be determined,
+// it returns "unknown" and the corresponding error.
 //
 // This is a static interface that does not have to be opened first.
 func (dev *Device) GetDevType() (string, error) {
 	var devtype *C.char
 	ret := C.xwii_iface_get_devtype(dev.cptr, &devtype)
 	if ret != 0 {
-		return "", cError(ret)
+		return "<unknown>", cError(ret)
 	}
 	return cStringCopy(devtype), nil
 }
 
-// GetExtension returns the extension type.
+// GetExtension returns the extension type. If no extension is connected or the
+// extension cannot be determined, it returns a string "none" and the corresponding error.
 //
 // This is a static interface that does not have to be opened first.
 func (dev *Device) GetExtension() (string, error) {
 	var ext *C.char
 	ret := C.xwii_iface_get_extension(dev.cptr, &ext)
 	if ret != 0 {
-		return "", cError(ret)
+		return "none", cError(ret)
 	}
 	return cStringCopy(ext), nil
 }
@@ -427,4 +432,19 @@ func (dev *Device) SetMPNormalization(x, y, z, factor int32) {
 func (dev *Device) GetMPNormalization() (x, y, z, factor int32) {
 	C.xwii_iface_get_mp_normalization(dev.cptr, (*C.int32_t)(&x), (*C.int32_t)(&y), (*C.int32_t)(&z), (*C.int32_t)(&factor))
 	return
+}
+
+func (dev *Device) String() string {
+	var w strings.Builder
+	w.WriteString("xwiimote-device ")
+	devtype, _ := dev.GetDevType()
+	w.WriteString(devtype)
+	ext, _ := dev.GetExtension()
+	if ext != "none" && ext != "" {
+		w.WriteString(" with ")
+		w.WriteString(ext)
+	}
+	w.WriteString(" at ")
+	w.WriteString(dev.GetSyspath())
+	return w.String()
 }
