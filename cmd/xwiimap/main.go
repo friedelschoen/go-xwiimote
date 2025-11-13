@@ -348,6 +348,7 @@ func watchDevice(path string, mapping map[xwiimote.Key]int) {
 		fmt.Fprintf(os.Stderr, "error: unable to get device: %s", err)
 	}
 	defer dev.Free()
+
 	poll := xwiimote.NewPoller(dev)
 
 	if err := dev.Open(xwiimote.InterfaceCore); err != nil {
@@ -386,7 +387,7 @@ func main() {
 
 	mapping := loadMapping(os.Stdin)
 
-	monitor := xwiimote.NewMonitor(false)
+	monitor := xwiimote.NewMonitor(xwiimote.MonitorUdev)
 	defer monitor.Free()
 
 	poll := xwiimote.NewPoller(monitor)

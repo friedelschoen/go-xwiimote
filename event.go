@@ -3,7 +3,11 @@ package xwiimote
 // #cgo pkg-config: libxwiimote
 // #include <xwiimote.h>
 import "C"
-import "time"
+import (
+	"fmt"
+	"time"
+	"unsafe"
+)
 
 // Key Event Identifiers
 //
@@ -104,11 +108,11 @@ type KeyState uint
 
 const (
 	// The key is released, alternativly KeyUp
-	StateReleased KeyState = 0
+	StateReleased KeyState = iota
 	// The key is pressed, alternativly KeyDown
-	StatePressed KeyState = 1
+	StatePressed
 	// The key is hold down and repeats
-	StateRepeated KeyState = 2
+	StateRepeated
 )
 
 // Vec2 represents a 2D point or vector to X and Y, may be interpreted otherwise depending on the event .
@@ -117,11 +121,52 @@ type Vec2 struct{ X, Y int32 }
 // Vec3 represents a 3D point or vector to X, Y and Z, may be interpreted otherwise depending on the event.
 type Vec3 struct{ X, Y, Z int32 }
 
+// EventType describes the type of event as an integer.
+type EventType uint
+
+const (
+	EventTypeKey                   EventType = C.XWII_EVENT_KEY
+	EventTypeAccel                 EventType = C.XWII_EVENT_ACCEL
+	EventTypeIR                    EventType = C.XWII_EVENT_IR
+	EventTypeBalanceBoard          EventType = C.XWII_EVENT_BALANCE_BOARD
+	EventTypeMotionPlus            EventType = C.XWII_EVENT_MOTION_PLUS
+	EventTypeProControllerKey      EventType = C.XWII_EVENT_PRO_CONTROLLER_KEY
+	EventTypeProControllerMove     EventType = C.XWII_EVENT_PRO_CONTROLLER_MOVE
+	EventTypeWatch                 EventType = C.XWII_EVENT_WATCH
+	EventTypeClassicControllerKey  EventType = C.XWII_EVENT_CLASSIC_CONTROLLER_KEY
+	EventTypeClassicControllerMove EventType = C.XWII_EVENT_CLASSIC_CONTROLLER_MOVE
+	EventTypeNunchukKey            EventType = C.XWII_EVENT_NUNCHUK_KEY
+	EventTypeNunchukMove           EventType = C.XWII_EVENT_NUNCHUK_MOVE
+	EventTypeDrumsKey              EventType = C.XWII_EVENT_DRUMS_KEY
+	EventTypeDrumsMove             EventType = C.XWII_EVENT_DRUMS_MOVE
+	EventTypeGuitarKey             EventType = C.XWII_EVENT_GUITAR_KEY
+	EventTypeGuitarMove            EventType = C.XWII_EVENT_GUITAR_MOVE
+	EventTypeGone                  EventType = C.XWII_EVENT_GONE
+)
+
 // Event interface describes an event fired by Device.Dispatch(),
 // consider using a type-switch to retrieve the specific event type and data
 type Event interface {
-	// Timestamp returns the time of firing.
+	fmt.Stringer
 	Timestamp() time.Time
+	Type() EventType
+}
+
+type commonEvent struct {
+	typ       EventType
+	timestamp time.Time
+}
+
+func (evt *commonEvent) Timestamp() time.Time {
+	return evt.timestamp
+}
+
+func (evt *commonEvent) Type() EventType {
+	return evt.typ
+}
+
+func (evt *commonEvent) String() string {
+	return fmt.Sprintf("xwiimote-event[type=%v, timestamp=%v]", evt.typ, evt.timestamp)
 }
 
 // EventKey is fired whenever a key is pressed or released. Valid
@@ -129,25 +174,17 @@ type Event interface {
 // which is normally only LEFT, RIGHT, UP, DOWN, A, B, PLUS, MINUS,
 // HOME, ONE, TWO.
 type EventKey struct {
-	timestamp time.Time
-	Code      Key
-	State     KeyState
-}
-
-func (evt *EventKey) Timestamp() time.Time {
-	return evt.timestamp
+	commonEvent
+	Code  Key
+	State KeyState
 }
 
 // EventAccel provides accelerometer data.
 // Note that the accelerometer reports acceleration data, not speed
 // data!
 type EventAccel struct {
-	timestamp time.Time
-	Accel     Vec3
-}
-
-func (evt *EventAccel) Timestamp() time.Time {
-	return evt.timestamp
+	commonEvent
+	Accel Vec3
 }
 
 // EventIR provides IR-camera events. The camera can track up two four IR
@@ -157,12 +194,8 @@ func (evt *EventAccel) Timestamp() time.Time {
 // Use IRSlot.Valid() to see whether a specific slot is
 // currently valid or whether it currently doesn't track any IR source.
 type EventIR struct {
-	timestamp time.Time
-	Slots     [4]IRSlot
-}
-
-func (evt *EventIR) Timestamp() time.Time {
-	return evt.timestamp
+	commonEvent
+	Slots [4]IRSlot
 }
 
 // IRSlot describes Infra-Red Tracking on a WiiMote
@@ -181,23 +214,15 @@ func (slot IRSlot) Valid() bool {
 // EventBalanceBoard provides balance-board weight data. Four sensors report weight-data
 // for each of the four edges of the board.
 type EventBalanceBoard struct {
-	timestamp time.Time
-	Weights   [4]int32
-}
-
-func (evt *EventBalanceBoard) Timestamp() time.Time {
-	return evt.timestamp
+	commonEvent
+	Weights [4]int32
 }
 
 // EventMotionPlus provides gyroscope events. These describe rotational speed, not
 // acceleration, of the motion-plus extension.
 type EventMotionPlus struct {
-	timestamp time.Time
-	Speed     [3]Vec3
-}
-
-func (evt *EventMotionPlus) Timestamp() time.Time {
-	return evt.timestamp
+	commonEvent
+	Speed [3]Vec3
 }
 
 // EventProControllerKey provides button events of the pro-controller
@@ -207,24 +232,16 @@ func (evt *EventMotionPlus) Timestamp() time.Time {
 // Y, A, B, TR, TL, ZR, ZL, THUMBL, THUMBR.
 // Payload type is struct xwii_event_key.
 type EventProControllerKey struct {
-	timestamp time.Time
-	Code      Key
-	State     KeyState
-}
-
-func (evt *EventProControllerKey) Timestamp() time.Time {
-	return evt.timestamp
+	commonEvent
+	Code  Key
+	State KeyState
 }
 
 // EventProControllerMove provides movement of analog sticks on the pro-controller and is
 // reported via this event.
 type EventProControllerMove struct {
-	timestamp time.Time
-	Sticks    [2]Vec2
-}
-
-func (evt *EventProControllerMove) Timestamp() time.Time {
-	return evt.timestamp
+	commonEvent
+	Sticks [2]Vec2
 }
 
 // EventWatch is sent whenever an extension was hotplugged (plugged or
@@ -241,11 +258,7 @@ func (evt *EventProControllerMove) Timestamp() time.Time {
 // kernel closed our file-descriptor (for whatever reason). This is
 // returned regardless whether you watch for hotplug events or not.
 type EventWatch struct {
-	timestamp time.Time
-}
-
-func (evt *EventWatch) Timestamp() time.Time {
-	return evt.timestamp
+	commonEvent
 }
 
 // EventClassicControllerKey provides Classic Controller key events.
@@ -255,13 +268,9 @@ func (evt *EventWatch) Timestamp() time.Time {
 // Valid buttons include: LEFT, RIGHT, UP, DOWN, PLUS, MINUS, HOME, X,
 // Y, A, B, TR, TL, ZR, ZL.
 type EventClassicControllerKey struct {
-	timestamp time.Time
-	Code      Key
-	State     KeyState
-}
-
-func (evt *EventClassicControllerKey) Timestamp() time.Time {
-	return evt.timestamp
+	commonEvent
+	Code  Key
+	State KeyState
 }
 
 // EventClassicControllerMove provides Classic Controller movement events.
@@ -274,15 +283,11 @@ func (evt *EventClassicControllerKey) Timestamp() time.Time {
 // TL/TR triggers, in which case these read 0 or MAX (63). The digital
 // TL/TR buttons are always reported correctly.
 type EventClassicControllerMove struct {
-	timestamp     time.Time
+	commonEvent
 	StickLeft     Vec2
 	StickRight    Vec2
 	ShoulderLeft  int32
 	ShoulderRight int32
-}
-
-func (evt *EventClassicControllerMove) Timestamp() time.Time {
-	return evt.timestamp
 }
 
 // EventNunchukKey provides Nunchuk key events.
@@ -291,13 +296,9 @@ func (evt *EventClassicControllerMove) Timestamp() time.Time {
 // core-buttons).
 // Valid buttons include: C, Z
 type EventNunchukKey struct {
-	timestamp time.Time
-	Code      Key
-	State     KeyState
-}
-
-func (evt *EventNunchukKey) Timestamp() time.Time {
-	return evt.timestamp
+	commonEvent
+	Code  Key
+	State KeyState
 }
 
 // EventNunchukMove provides Nunchuk movement events.
@@ -306,32 +307,24 @@ func (evt *EventNunchukKey) Timestamp() time.Time {
 // element contains the x/y positions of the analog stick. The second
 // array element contains the accelerometer information.
 type EventNunchukMove struct {
-	timestamp time.Time
-	Stick     Vec2
-	Accel     Vec3
-}
-
-func (evt *EventNunchukMove) Timestamp() time.Time {
-	return evt.timestamp
+	commonEvent
+	Stick Vec2
+	Accel Vec3
 }
 
 // EventDrumsKey provides Drums key events.
 // Button events for drums controllers. Valid buttons are PLUS and MINUS
 // for the +/- buttons on the center-bar.
 type EventDrumsKey struct {
-	timestamp time.Time
-	Code      Key
-	State     KeyState
-}
-
-func (evt *EventDrumsKey) Timestamp() time.Time {
-	return evt.timestamp
+	commonEvent
+	Code  Key
+	State KeyState
 }
 
 // EventDrumsMove provides Drums movement event
 // Movement and pressure events for drums controllers.
 type EventDrumsMove struct {
-	timestamp   time.Time
+	commonEvent
 	Pad         Vec2
 	CymbalLeft  int32
 	CymbalRight int32
@@ -342,36 +335,24 @@ type EventDrumsMove struct {
 	HiHat       int32
 }
 
-func (evt *EventDrumsMove) Timestamp() time.Time {
-	return evt.timestamp
-}
-
 // EventGuitarKey provides Guitar key events
 // Button events for guitar controllers. Valid buttons are HOME and PLUS
 // for the StarPower/Home button and the + button. Furthermore, you get
 // FRET_FAR_UP, FRET_UP, FRET_MID, FRET_LOW, FRET_FAR_LOW for fret
 // activity and STRUM_BAR_UP and STRUM_BAR_LOW for the strum bar.
 type EventGuitarKey struct {
-	timestamp time.Time
-	Code      Key
-	State     KeyState
-}
-
-func (evt *EventGuitarKey) Timestamp() time.Time {
-	return evt.timestamp
+	commonEvent
+	Code  Key
+	State KeyState
 }
 
 // EventGuitarMove provides Guitar movement events.
 // Movement information for guitar controllers.
 type EventGuitarMove struct {
-	timestamp time.Time
+	commonEvent
 	Stick     Vec2
 	WhammyBar int32
 	FretBar   int32
-}
-
-func (evt *EventGuitarMove) Timestamp() time.Time {
-	return evt.timestamp
 }
 
 // EventGone provides Removal Event.
@@ -381,9 +362,132 @@ func (evt *EventGuitarMove) Timestamp() time.Time {
 //
 // See Device.Watch().
 type EventGone struct {
-	timestamp time.Time
+	commonEvent
 }
 
-func (evt *EventGone) Timestamp() time.Time {
-	return evt.timestamp
+func vec2event(payload C.struct_xwii_event_abs) Vec2 {
+	return Vec2{
+		X: int32(payload.x),
+		Y: int32(payload.y),
+	}
+}
+
+func vec3event(payload C.struct_xwii_event_abs) Vec3 {
+	return Vec3{
+		X: int32(payload.x),
+		Y: int32(payload.y),
+		Z: int32(payload.z),
+	}
+}
+
+func makeEvent(ev C.struct_xwii_event) Event {
+	common := commonEvent{typ: EventType(ev._type), timestamp: cTime(ev.time)}
+
+	switch common.Type() {
+	case EventTypeKey:
+		payload := (*C.struct_xwii_event_key)(unsafe.Pointer(&ev.v))
+		return &EventKey{commonEvent: common, Code: Key(payload.code), State: KeyState(payload.state)}
+
+	case EventTypeAccel:
+		payload := (*[C.XWII_ABS_NUM]C.struct_xwii_event_abs)(unsafe.Pointer(&ev.v))
+		rev := &EventAccel{commonEvent: common}
+		rev.Accel = vec3event(payload[0])
+		return rev
+
+	case EventTypeIR:
+		payload := (*[C.XWII_ABS_NUM]C.struct_xwii_event_abs)(unsafe.Pointer(&ev.v))
+		rev := &EventIR{commonEvent: common}
+		for i := range rev.Slots {
+			rev.Slots[i] = IRSlot{vec2event(payload[i])}
+		}
+		return rev
+
+	case EventTypeBalanceBoard:
+		payload := (*[C.XWII_ABS_NUM]C.struct_xwii_event_abs)(unsafe.Pointer(&ev.v))
+		rev := &EventBalanceBoard{commonEvent: common}
+		for i := range rev.Weights {
+			rev.Weights[i] = int32(payload[i].x)
+		}
+		return rev
+
+	case EventTypeMotionPlus:
+		payload := (*[C.XWII_ABS_NUM]C.struct_xwii_event_abs)(unsafe.Pointer(&ev.v))
+		rev := &EventMotionPlus{commonEvent: common}
+		for i := range rev.Speed {
+			rev.Speed[i] = vec3event(payload[i])
+		}
+		return rev
+
+	case EventTypeProControllerKey:
+		payload := (*C.struct_xwii_event_key)(unsafe.Pointer(&ev.v))
+		return &EventProControllerKey{commonEvent: common, Code: Key(payload.code), State: KeyState(payload.state)}
+
+	case EventTypeProControllerMove:
+		payload := (*[C.XWII_ABS_NUM]C.struct_xwii_event_abs)(unsafe.Pointer(&ev.v))
+		rev := &EventProControllerMove{commonEvent: common}
+		for i := range rev.Sticks {
+			rev.Sticks[i] = vec2event(payload[i])
+		}
+		return rev
+
+	case EventTypeWatch:
+		return &EventWatch{commonEvent: common}
+
+	case EventTypeClassicControllerKey:
+		payload := (*C.struct_xwii_event_key)(unsafe.Pointer(&ev.v))
+		return &EventClassicControllerKey{commonEvent: common, Code: Key(payload.code), State: KeyState(payload.state)}
+
+	case EventTypeClassicControllerMove:
+		payload := (*[C.XWII_ABS_NUM]C.struct_xwii_event_abs)(unsafe.Pointer(&ev.v))
+		rev := &EventClassicControllerMove{commonEvent: common}
+		rev.StickLeft = vec2event(payload[0])
+		rev.StickRight = vec2event(payload[1])
+		rev.ShoulderLeft = int32(payload[2].x)
+		rev.ShoulderRight = int32(payload[2].y)
+		return rev
+
+	case EventTypeNunchukKey:
+		payload := (*C.struct_xwii_event_key)(unsafe.Pointer(&ev.v))
+		return &EventNunchukKey{commonEvent: common, Code: Key(payload.code), State: KeyState(payload.state)}
+
+	case EventTypeNunchukMove:
+		payload := (*[C.XWII_ABS_NUM]C.struct_xwii_event_abs)(unsafe.Pointer(&ev.v))
+		rev := &EventNunchukMove{commonEvent: common}
+		rev.Stick = vec2event(payload[0])
+		rev.Accel = vec3event(payload[1])
+		return rev
+
+	case EventTypeDrumsKey:
+		payload := (*C.struct_xwii_event_key)(unsafe.Pointer(&ev.v))
+		return &EventDrumsKey{commonEvent: common, Code: Key(payload.code), State: KeyState(payload.state)}
+
+	case EventTypeDrumsMove:
+		payload := (*[C.XWII_ABS_NUM]C.struct_xwii_event_abs)(unsafe.Pointer(&ev.v))
+		rev := &EventDrumsMove{commonEvent: common}
+		rev.Pad = vec2event(payload[C.XWII_DRUMS_ABS_PAD])
+		rev.CymbalLeft = int32(payload[C.XWII_DRUMS_ABS_CYMBAL_LEFT].x)
+		rev.CymbalRight = int32(payload[C.XWII_DRUMS_ABS_CYMBAL_RIGHT].x)
+		rev.TomLeft = int32(payload[C.XWII_DRUMS_ABS_TOM_LEFT].x)
+		rev.TomRight = int32(payload[C.XWII_DRUMS_ABS_TOM_RIGHT].x)
+		rev.TomFarRight = int32(payload[C.XWII_DRUMS_ABS_TOM_FAR_RIGHT].x)
+		rev.Bass = int32(payload[C.XWII_DRUMS_ABS_BASS].x)
+		rev.HiHat = int32(payload[C.XWII_DRUMS_ABS_HI_HAT].x)
+		return rev
+
+	case EventTypeGuitarKey:
+		payload := (*C.struct_xwii_event_key)(unsafe.Pointer(&ev.v))
+		return &EventGuitarKey{commonEvent: common, Code: Key(payload.code), State: KeyState(payload.state)}
+
+	case EventTypeGuitarMove:
+		payload := (*[C.XWII_ABS_NUM]C.struct_xwii_event_abs)(unsafe.Pointer(&ev.v))
+		rev := &EventGuitarMove{commonEvent: common}
+		rev.Stick = vec2event(payload[0])
+		rev.WhammyBar = int32(payload[1].x)
+		rev.FretBar = int32(payload[2].x)
+		return rev
+
+	case EventTypeGone:
+		return &EventGone{commonEvent: common}
+	}
+	return nil
 }

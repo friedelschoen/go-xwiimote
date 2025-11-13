@@ -8,13 +8,13 @@ import (
 )
 
 // MonitorType describes how a monitor or enumerator should look for devices.
-type MonitorType bool
+type MonitorType uint
 
 const (
 	// Monitor uses kernel uevents
-	MonitorKernel MonitorType = true
+	MonitorKernel MonitorType = 1
 	// Monitor uses udevd
-	MonitorUdev MonitorType = false
+	MonitorUdev MonitorType = 0
 )
 
 // Monitor describes a monitor for xwiimote-devices. This includes currently available
@@ -35,7 +35,7 @@ type Monitor struct {
 // The object and underlying structure is freed automatically by default.
 func NewMonitor(typ MonitorType) *Monitor {
 	mon := new(Monitor)
-	mon.cptr = C.xwii_monitor_new(true, C.bool(typ))
+	mon.cptr = C.xwii_monitor_new(true, C.bool(typ != 0))
 
 	runtime.SetFinalizer(mon, func(m *Monitor) {
 		m.Free()

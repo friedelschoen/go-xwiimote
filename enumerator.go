@@ -20,7 +20,7 @@ type Enumerator struct {
 // The object and underlying structure is freed automatically by default.
 func NewEnumerator(typ MonitorType) *Enumerator {
 	enum := new(Enumerator)
-	enum.cptr = C.xwii_monitor_new(false, C.bool(typ))
+	enum.cptr = C.xwii_monitor_new(false, C.bool(typ != 0))
 
 	runtime.SetFinalizer(enum, func(e *Enumerator) {
 		e.Free()
