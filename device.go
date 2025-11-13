@@ -204,6 +204,21 @@ func (dev *Device) Poll() (Event, bool, error) {
 	return event, true, nil
 }
 
+func vec2event(payload C.struct_xwii_event_abs) Vec2 {
+	return Vec2{
+		X: int32(payload.x),
+		Y: int32(payload.y),
+	}
+}
+
+func vec3event(payload C.struct_xwii_event_abs) Vec3 {
+	return Vec3{
+		X: int32(payload.x),
+		Y: int32(payload.y),
+		Z: int32(payload.z),
+	}
+}
+
 func makeEvent(ev C.struct_xwii_event) Event {
 	switch ev._type {
 	case C.XWII_EVENT_KEY:
@@ -213,17 +228,14 @@ func makeEvent(ev C.struct_xwii_event) Event {
 	case C.XWII_EVENT_ACCEL:
 		payload := (*[C.XWII_ABS_NUM]C.struct_xwii_event_abs)(unsafe.Pointer(&ev.v))
 		rev := &EventAccel{timestamp: cTime(ev.time)}
-		rev.Accel.X = int32(payload[0].x)
-		rev.Accel.Y = int32(payload[0].y)
-		rev.Accel.Z = int32(payload[0].z)
+		rev.Accel = vec3event(payload[0])
 		return rev
 
 	case C.XWII_EVENT_IR:
 		payload := (*[C.XWII_ABS_NUM]C.struct_xwii_event_abs)(unsafe.Pointer(&ev.v))
 		rev := &EventIR{timestamp: cTime(ev.time)}
 		for i := range rev.Slots {
-			rev.Slots[i].X = int32(payload[i].x)
-			rev.Slots[i].Y = int32(payload[i].y)
+			rev.Slots[i] = IRSlot{vec2event(payload[i])}
 		}
 		return rev
 
@@ -239,9 +251,7 @@ func makeEvent(ev C.struct_xwii_event) Event {
 		payload := (*[C.XWII_ABS_NUM]C.struct_xwii_event_abs)(unsafe.Pointer(&ev.v))
 		rev := &EventMotionPlus{timestamp: cTime(ev.time)}
 		for i := range rev.Speed {
-			rev.Speed[i].X = int32(payload[i].x)
-			rev.Speed[i].Y = int32(payload[i].y)
-			rev.Speed[i].Z = int32(payload[i].z)
+			rev.Speed[i] = vec3event(payload[i])
 		}
 		return rev
 
@@ -253,8 +263,7 @@ func makeEvent(ev C.struct_xwii_event) Event {
 		payload := (*[C.XWII_ABS_NUM]C.struct_xwii_event_abs)(unsafe.Pointer(&ev.v))
 		rev := &EventProControllerMove{timestamp: cTime(ev.time)}
 		for i := range rev.Sticks {
-			rev.Sticks[i].X = int32(payload[i].x)
-			rev.Sticks[i].Y = int32(payload[i].y)
+			rev.Sticks[i] = vec2event(payload[i])
 		}
 		return rev
 
@@ -268,10 +277,8 @@ func makeEvent(ev C.struct_xwii_event) Event {
 	case C.XWII_EVENT_CLASSIC_CONTROLLER_MOVE:
 		payload := (*[C.XWII_ABS_NUM]C.struct_xwii_event_abs)(unsafe.Pointer(&ev.v))
 		rev := &EventClassicControllerMove{timestamp: cTime(ev.time)}
-		rev.StickLeft.X = int32(payload[0].x)
-		rev.StickLeft.Y = int32(payload[0].y)
-		rev.StickRight.X = int32(payload[1].x)
-		rev.StickRight.Y = int32(payload[1].y)
+		rev.StickLeft = vec2event(payload[0])
+		rev.StickRight = vec2event(payload[1])
 		rev.ShoulderLeft = int32(payload[2].x)
 		rev.ShoulderRight = int32(payload[2].y)
 		return rev
@@ -283,11 +290,8 @@ func makeEvent(ev C.struct_xwii_event) Event {
 	case C.XWII_EVENT_NUNCHUK_MOVE:
 		payload := (*[C.XWII_ABS_NUM]C.struct_xwii_event_abs)(unsafe.Pointer(&ev.v))
 		rev := &EventNunchukMove{timestamp: cTime(ev.time)}
-		rev.Stick.X = int32(payload[0].x)
-		rev.Stick.Y = int32(payload[0].y)
-		rev.Accel.X = int32(payload[1].x)
-		rev.Accel.Y = int32(payload[1].y)
-		rev.Accel.Z = int32(payload[1].z)
+		rev.Stick = vec2event(payload[0])
+		rev.Accel = vec3event(payload[1])
 		return rev
 
 	case C.XWII_EVENT_DRUMS_KEY:
@@ -297,8 +301,7 @@ func makeEvent(ev C.struct_xwii_event) Event {
 	case C.XWII_EVENT_DRUMS_MOVE:
 		payload := (*[C.XWII_ABS_NUM]C.struct_xwii_event_abs)(unsafe.Pointer(&ev.v))
 		rev := &EventDrumsMove{timestamp: cTime(ev.time)}
-		rev.Pad.X = int32(payload[C.XWII_DRUMS_ABS_PAD].x)
-		rev.Pad.Y = int32(payload[C.XWII_DRUMS_ABS_PAD].y)
+		rev.Pad = vec2event(payload[C.XWII_DRUMS_ABS_PAD])
 		rev.CymbalLeft = int32(payload[C.XWII_DRUMS_ABS_CYMBAL_LEFT].x)
 		rev.CymbalRight = int32(payload[C.XWII_DRUMS_ABS_CYMBAL_RIGHT].x)
 		rev.TomLeft = int32(payload[C.XWII_DRUMS_ABS_TOM_LEFT].x)
@@ -315,10 +318,9 @@ func makeEvent(ev C.struct_xwii_event) Event {
 	case C.XWII_EVENT_GUITAR_MOVE:
 		payload := (*[C.XWII_ABS_NUM]C.struct_xwii_event_abs)(unsafe.Pointer(&ev.v))
 		rev := &EventGuitarMove{timestamp: cTime(ev.time)}
-		rev.Stick.X = int32(payload[0].x)
-		rev.Stick.Y = int32(payload[0].y)
+		rev.Stick = vec2event(payload[0])
 		rev.WhammyBar = int32(payload[1].x)
-		rev.FretBar = int32(payload[2].z)
+		rev.FretBar = int32(payload[2].x)
 		return rev
 
 	case C.XWII_EVENT_GONE:
