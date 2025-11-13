@@ -166,9 +166,14 @@ func (evt *EventIR) Timestamp() time.Time {
 }
 
 // IRSlot describes Infra-Red Tracking on a WiiMote
-type IRSlot Vec2
+type IRSlot struct {
+	Vec2
+}
 
-// Valid returns whether the slot has a source to track.
+// If you receive an IR event, you can use this function on the first 4
+// absolute motion payloads. It returns true if the given slot currently tracks
+// a valid IR source. false is returned if the slot is invalid and currently
+// disabled (due to missing IR sources).
 func (slot IRSlot) Valid() bool {
 	return slot.X != 1023 || slot.Y != 1023
 }
