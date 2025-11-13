@@ -50,14 +50,14 @@ func (dev InterfaceType) Name() string {
 	return C.GoString(cstr)
 }
 
-// Led described a Led of an device. The leds are counted left-to-right.
+// Led described a Led of an device. The leds are counted left-to-right and can be OR'ed together.
 type Led uint
 
 const (
-	Led1 Led = C.XWII_LED1
-	Led2 Led = C.XWII_LED2
-	Led3 Led = C.XWII_LED3
-	Led4 Led = C.XWII_LED4
+	Led1 Led = 1 << iota
+	Led2
+	Led3
+	Led4
 )
 
 // Device describes the communication with a single device. That is, you
@@ -231,18 +231,38 @@ func (dev *Device) Rumble(state bool) error {
 // GetLED reads the LED state for the given LED.
 //
 // LEDs are a static interface that does not have to be opened first.
-func (dev *Device) GetLED(led Led) (bool, error) {
-	var state C.bool
-	ret := C.xwii_iface_get_led(dev.cptr, C.uint(led), &state)
-	return bool(state), cError(ret)
+func (dev *Device) GetLED() (Led, error) {
+	var (
+		state  C.bool
+		ret    C.int
+		result Led
+	)
+	for i := range 4 {
+		ret = C.xwii_iface_get_led(dev.cptr, C.uint(i), &state)
+		if ret != 0 {
+			return 0, cError(ret)
+		}
+		if state {
+			result |= 1 << i
+		}
+	}
+	return result, nil
 }
 
 // SetLED writes the LED state for the given LED.
 //
 // LEDs are a static interface that does not have to be opened first.
-func (dev *Device) SetLED(led Led, state bool) error {
-	ret := C.xwii_iface_set_led(dev.cptr, C.uint(led), C.bool(state))
-	return cError(ret)
+func (dev *Device) SetLED(leds Led) error {
+	var (
+		ret C.int
+	)
+	for i := range 4 {
+		ret = C.xwii_iface_set_led(dev.cptr, C.uint(i), leds&(1<<i) != 0)
+		if ret != 0 {
+			return cError(ret)
+		}
+	}
+	return nil
 }
 
 // GetBattery reads the current battery capacity. The capacity is represented as percentage, thus the return value is an integer between 0 and 100.

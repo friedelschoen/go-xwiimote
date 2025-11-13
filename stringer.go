@@ -51,20 +51,32 @@ func _() {
 	var x [1]struct{}
 	_ = x[Led1-1]
 	_ = x[Led2-2]
-	_ = x[Led3-3]
-	_ = x[Led4-4]
+	_ = x[Led3-4]
+	_ = x[Led4-8]
 }
 
-const _Led_name = "Led1Led2Led3Led4"
+const (
+	_Led_name_0 = "Led1Led2"
+	_Led_name_1 = "Led3"
+	_Led_name_2 = "Led4"
+)
 
-var _Led_index = [...]uint8{0, 4, 8, 12, 16}
+var (
+	_Led_index_0 = [...]uint8{0, 4, 8}
+)
 
 func (i Led) String() string {
-	i -= 1
-	if i >= Led(len(_Led_index)-1) {
-		return "Led(" + strconv.FormatInt(int64(i+1), 10) + ")"
+	switch {
+	case 1 <= i && i <= 2:
+		i -= 1
+		return _Led_name_0[_Led_index_0[i]:_Led_index_0[i+1]]
+	case i == 4:
+		return _Led_name_1
+	case i == 8:
+		return _Led_name_2
+	default:
+		return "Led(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
-	return _Led_name[_Led_index[i]:_Led_index[i+1]]
 }
 func _() {
 	// An "invalid array index" compiler error signifies that the constant values have changed.
