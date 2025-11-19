@@ -203,10 +203,7 @@ type IRSlot struct {
 	Vec2
 }
 
-// If you receive an IR event, you can use this function on the first 4
-// absolute motion payloads. It returns true if the given slot currently tracks
-// a valid IR source. false is returned if the slot is invalid and currently
-// disabled (due to missing IR sources).
+// Valid returns wether this slot holds a valid source. If not it has no track and is considered disabled.
 func (slot IRSlot) Valid() bool {
 	return slot.X != 1023 || slot.Y != 1023
 }
