@@ -11,8 +11,8 @@ import (
 // ErrPollAgain is returned by a PollDriver to mark the poll invalid.
 var ErrPollAgain = errors.New("invalid polling, should retrying")
 
-// PollDriver defines a source that can be polled for events or data.
-type PollDriver[T any] interface {
+// pollDriver defines a source that can be polled for events or data.
+type pollDriver[T any] interface {
 	// FD returns a non-blocking file descriptor. When it becomes readable,
 	// Poll() is expected to return data immediately.
 	FD() int
@@ -28,17 +28,17 @@ type PollDriver[T any] interface {
 	Poll() (T, bool, error)
 }
 
-// Poller drives a PollMonitor using poll(2) or retry logic.
-type Poller[T any] struct {
-	drv      PollDriver[T]
+// poller drives a PollMonitor using poll(2) or retry logic.
+type poller[T any] struct {
+	drv      pollDriver[T]
 	fd       int
 	dontwait bool
 }
 
-// NewPoller creates a new Poller for the given monitor.
+// newPoller creates a new Poller for the given monitor.
 // The poller initially assumes that Poll() should be called without waiting.
-func NewPoller[T any](drv PollDriver[T]) *Poller[T] {
-	return &Poller[T]{
+func newPoller[T any](drv pollDriver[T]) poller[T] {
+	return poller[T]{
 		drv:      drv,
 		fd:       -1,
 		dontwait: true,
@@ -47,7 +47,7 @@ func NewPoller[T any](drv PollDriver[T]) *Poller[T] {
 
 // Wait waits for an event up to the specified timeout. A negative timeout is considered forever.
 // It handles ErrRetry internally and returns the first valid event or error.
-func (p *Poller[T]) Wait(timeout time.Duration) (T, error) {
+func (p *poller[T]) Wait(timeout time.Duration) (T, error) {
 	for {
 		if !p.dontwait {
 			if p.fd == -1 {
@@ -76,7 +76,7 @@ func (p *Poller[T]) Wait(timeout time.Duration) (T, error) {
 	}
 }
 
-func (p *Poller[T]) drain(ch chan<- T) {
+func (p *poller[T]) drain(ch chan<- T) {
 	for {
 		ev, cont, err := p.drv.Poll()
 		if errors.Is(err, ErrPollAgain) {
@@ -96,7 +96,7 @@ func (p *Poller[T]) drain(ch chan<- T) {
 
 // Stream continuously polls and writes events into ch.
 // It blocks in a background goroutine until an error occurs or the poller stops.
-func (p *Poller[T]) Stream(ch chan<- T) {
+func (p *poller[T]) Stream(ch chan<- T) {
 	go func() {
 		p.drain(ch)
 		for {

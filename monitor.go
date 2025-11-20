@@ -22,6 +22,7 @@ const (
 //
 // Monitors are not thread-safe.
 type Monitor struct {
+	poller[string]
 	cptr *C.struct_xwii_monitor
 }
 
@@ -35,6 +36,7 @@ type Monitor struct {
 // The object and underlying structure is freed automatically by default.
 func NewMonitor(typ MonitorType) *Monitor {
 	mon := new(Monitor)
+	mon.poller = newPoller(mon)
 	mon.cptr = C.xwii_monitor_new(true, C.bool(typ != 0))
 
 	runtime.SetFinalizer(mon, func(m *Monitor) {

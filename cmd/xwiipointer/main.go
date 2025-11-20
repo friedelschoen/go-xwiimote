@@ -24,8 +24,6 @@ func watchDevice(path string) {
 	}
 	defer dev.Free()
 
-	poll := xwiimote.NewPoller(dev)
-
 	if err := dev.Open(xwiimote.InterfaceCore | xwiimote.InterfaceIR | xwiimote.InterfaceAccel); err != nil {
 		log.Fatalf("error: unable to open device: %v", err)
 	}
@@ -37,7 +35,7 @@ func watchDevice(path string) {
 	var lastIR *xwiimote.EventIR
 	var lastAccel *xwiimote.EventAccel
 	for {
-		ev, err := poll.Wait(-1)
+		ev, err := dev.Wait(-1)
 		if err != nil {
 			log.Printf("unable to poll event: %v\n", err)
 		}
@@ -96,9 +94,8 @@ func main() {
 	monitor := xwiimote.NewMonitor(xwiimote.MonitorUdev)
 	defer monitor.Free()
 
-	poll := xwiimote.NewPoller(monitor)
 	for {
-		path, err := poll.Wait(-1)
+		path, err := monitor.Wait(-1)
 		if err != nil || path == "" {
 			log.Printf("error while polling: %v\n", err)
 			continue

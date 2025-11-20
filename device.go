@@ -64,6 +64,7 @@ const (
 // create one for each device you use. All sub-interfaces are opened on this
 // object.
 type Device struct {
+	poller[Event]
 	cptr *C.struct_xwii_iface
 }
 
@@ -79,6 +80,7 @@ type Device struct {
 // The object and underlying structure is freed automatically by default.
 func NewDevice(syspath string) (*Device, error) {
 	dev := new(Device)
+	dev.poller = newPoller(dev)
 	csyspath := C.CString(syspath)
 	defer C.free(unsafe.Pointer(csyspath))
 
