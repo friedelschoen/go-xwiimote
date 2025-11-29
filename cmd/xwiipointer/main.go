@@ -7,12 +7,13 @@ import (
 	"math"
 
 	"github.com/friedelschoen/go-xwiimote"
-	"github.com/friedelschoen/go-xwiimote/pkg/virtpointer"
-	"github.com/friedelschoen/wayland"
+	"github.com/friedelschoen/go-xwiimote/pkg/virtdev"
 )
 
 func watchDevice(path string) {
-	mouse, err := virtpointer.NewVirtualPointer()
+	mouse, err := virtdev.CreateMouse("xwiimote-mouse",
+		virtdev.Range{Min: -340, Max: 340, Res: 72},
+		virtdev.Range{Min: -92, Max: 290, Res: 72})
 	if err != nil {
 		log.Fatalf("error: unable to create mouse: %v", err)
 	}
@@ -50,11 +51,11 @@ func watchDevice(path string) {
 			}
 			switch ev.Code {
 			case xwiimote.KeyA:
-				mouse.Button(wayland.ButtonLeft, ev.State != xwiimote.StateReleased)
+				mouse.Key(virtdev.ButtonLeft, ev.State != xwiimote.StateReleased)
 			case xwiimote.KeyB:
-				mouse.Button(wayland.ButtonRight, ev.State != xwiimote.StateReleased)
+				mouse.Key(virtdev.ButtonRight, ev.State != xwiimote.StateReleased)
 			case xwiimote.KeyHome:
-				mouse.Button(wayland.ButtonMiddle, ev.State != xwiimote.StateReleased)
+				mouse.Key(virtdev.ButtonMiddle, ev.State != xwiimote.StateReleased)
 			case xwiimote.KeyUp:
 				if ev.State == xwiimote.StatePressed {
 					mouse.Scroll(false, -10)
@@ -80,10 +81,12 @@ func watchDevice(path string) {
 			lastAccel = nil
 		}
 		if pointer.Health >= xwiimote.IRGood && pointer.Smooth != nil {
-			x := xwiimote.MapNumber(pointer.Smooth.X, -340, 340, 0, 1000, true)
-			y := xwiimote.MapNumber(pointer.Smooth.Y, -92, 290, 0, 1000, true)
-			fmt.Printf("[%v] pointer at (%.2f %.2f) at %.2fm distance -> mapping to (%.0f %.0f)\n", pointer.Health, pointer.Smooth.X, pointer.Smooth.Y, pointer.WiimoteDistance(), x, y)
-			mouse.Set(uint32(x), uint32(y), 1000, 1000)
+			x, y := pointer.Smooth.X, pointer.Smooth.Y
+			if x >= -340 && x < 340 && y >= -92 && y < 290 {
+				fmt.Printf("[%v] pointer at (%.2f %.2f) at %.2fm distance\n", pointer.Health, pointer.Smooth.X, pointer.Smooth.Y, pointer.WiimoteDistance())
+				err := mouse.Set(int32(x), int32(y))
+				fmt.Println(err)
+			}
 		}
 	}
 }

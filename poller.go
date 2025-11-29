@@ -85,11 +85,11 @@ func (p *poller[T]) drain(ch chan<- T) {
 		}
 		if err != nil {
 			log.Printf("error while polling for event: %v", err)
-			return
+			continue
 		}
 		ch <- ev
 		if !cont {
-			return
+			continue
 		}
 	}
 }

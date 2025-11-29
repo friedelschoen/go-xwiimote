@@ -547,22 +547,3 @@ func (ir *IRPointer) WiimoteDistance() float64 {
 func (ir *IRPointer) Angle() float64 {
 	return ir.sensorbar.angle
 }
-
-type Number interface {
-	~int | ~int8 | ~int16 | ~int32 | ~int64 |
-		~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr |
-		~float32 | ~float64
-}
-
-// MapNumber takes an input value which sits between [inMin..inMax] and maps it to [outMin..outMax].
-// If check if set it ensures that the output is between the output range.
-func MapNumber[T Number](x, inMin, inMax, outMin, outMax T, check bool) T {
-	res := (x-inMin)*(outMax-outMin)/(inMax-inMin) + outMin
-	if res < outMin {
-		res = outMin
-	}
-	if res > outMax {
-		res = outMax
-	}
-	return res
-}
