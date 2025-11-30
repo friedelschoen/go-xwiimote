@@ -437,7 +437,7 @@ func (ir *IRPointer) guessSingle(dots, accDots []FVec2, roll float64) (sb Sensor
 
 // raw      *FVec2  // Raw coordinate (-512..512, 0 is center)
 // distance float64 // Pixel width of the sensor bar
-func (ir *IRPointer) updateSensorbar(slots [4]xwiimote.IRSlot, roll float64) (raw FVec2, distance float64, ok bool) {
+func (ir *IRPointer) updateSensorbar(slots [4]xwiimote.IRSlot, roll float64) (raw FVec2, ok bool) {
 	dots := findDots(slots)
 
 	// nothing to track
@@ -476,12 +476,12 @@ func (ir *IRPointer) updateSensorbar(slots [4]xwiimote.IRSlot, roll float64) (ra
 		}
 		ir.Health = IRGood
 	}
+	ir.Distance = 50 / (ir.rotDots[1].X - ir.rotDots[0].X)
 
 	raw = FVec2{
 		X: (ir.rotDots[0].X + ir.rotDots[1].X) / 2 * 512.0,
 		Y: (ir.rotDots[0].Y + ir.rotDots[1].Y) / 2 * 512.0,
 	}
-	distance = 50 / (ir.rotDots[1].X - ir.rotDots[0].X)
 	ok = true
 	return
 }
@@ -518,7 +518,7 @@ func (ir *IRPointer) Update(slots [4]xwiimote.IRSlot, accel xwiimote.Vec3) {
 // data is unreliable (wiimote is significantly accelerating) then you should
 // supply the last known good value.
 func (ir *IRPointer) UpdateRoll(slots [4]xwiimote.IRSlot, roll float64) {
-	raw, distance, ok := ir.updateSensorbar(slots, roll)
+	raw, ok := ir.updateSensorbar(slots, roll)
 
 	if !ok {
 		if ir.errorCount >= ir.params.ErrorMaxCount {
@@ -529,7 +529,6 @@ func (ir *IRPointer) UpdateRoll(slots [4]xwiimote.IRSlot, roll float64) {
 		return
 	}
 
-	ir.Distance = distance
 	if ir.errorCount >= ir.params.ErrorMaxCount {
 		ir.Position = &raw
 		ir.glitchCount = 0
