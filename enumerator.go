@@ -4,6 +4,7 @@ package xwiimote
 // #include <xwiimote.h>
 import "C"
 import (
+	"iter"
 	"runtime"
 )
 
@@ -47,4 +48,20 @@ func (enum *Enumerator) Free() {
 func (enum *Enumerator) Next() string {
 	path := C.xwii_monitor_poll(enum.cptr)
 	return cStringCopy(path)
+}
+
+// IterDevices returns all currently available devices. It is a wrapper of Enumerator and is reentrant.
+func IterDevices(typ MonitorType) iter.Seq[string] {
+	return func(yield func(string) bool) {
+		enum := NewEnumerator(typ)
+		for {
+			path := enum.Next()
+			if path == "" {
+				return
+			}
+			if !yield(path) {
+				return
+			}
+		}
+	}
 }
