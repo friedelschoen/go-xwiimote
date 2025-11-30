@@ -80,10 +80,10 @@ func CreateMouse(name string, xabs, yabs Range, opts ...UinputOption) (*Mouse, e
 // values will cause a move towards the upper left corner.
 func (vRel *Mouse) Move(x, y int32) error {
 	if err := vRel.emit(evRel, relX, x); err != nil {
-		return fmt.Errorf("Failed to move pointer along x axis: %w", err)
+		return fmt.Errorf("failed to move pointer along x axis: %w", err)
 	}
 	if err := vRel.emit(evRel, relY, y); err != nil {
-		return fmt.Errorf("Failed to move pointer along y axis: %w", err)
+		return fmt.Errorf("failed to move pointer along y axis: %w", err)
 	}
 	vRel.sync()
 	return nil
@@ -91,16 +91,16 @@ func (vRel *Mouse) Move(x, y int32) error {
 
 func (vRel *Mouse) Set(x, y int32) error {
 	if err := vRel.emit(evAbs, absX, x); err != nil {
-		return fmt.Errorf("Failed to move pointer along x axis: %w", err)
+		return fmt.Errorf("failed to move pointer along x axis: %w", err)
 	}
 	if err := vRel.emit(evAbs, absY, y); err != nil {
-		return fmt.Errorf("Failed to move pointer along y axis: %w", err)
+		return fmt.Errorf("failed to move pointer along y axis: %w", err)
 	}
 	vRel.sync()
 	return nil
 }
 
-// Wheel will simulate a wheel movement.
+// Scroll will simulate a wheel movement.
 func (vRel *Mouse) Scroll(horizontal bool, delta int32) error {
 	w := relWheel
 	if horizontal {
@@ -113,7 +113,6 @@ func (vRel *Mouse) Scroll(horizontal bool, delta int32) error {
 	return vRel.sync()
 }
 
-// Wheel will simulate a wheel movement.
 func (vRel *Mouse) registerAbs(typ uint16, min, max, res int32) error {
 	s := absSetup{
 		code: typ,

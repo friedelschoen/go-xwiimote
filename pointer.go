@@ -39,9 +39,11 @@ type FVec2 struct {
 	X, Y float64
 }
 
-// Holds state information on the sensor bar
+// SensorBar holds state information on the sensor bar
 type SensorBar struct {
-	Angle    float64
+	// Angle wiimote to sensorbar in radians.
+	Angle float64
+
 	dots     [2]FVec2
 	accDots  [2]FVec2
 	rotDots  [2]FVec2
@@ -105,10 +107,12 @@ type IRPointer struct {
 	SensorBar
 	params *IRParams
 
-	// Internal Health
-	Health   IRHealth
-	Distance float64 // Distance from wiimote to screen in centimeters
-	Smooth   *FVec2  // Smoothed coordinate
+	// Health of pointer
+	Health IRHealth
+	// Distance from wiimote to screen in centimeters
+	Distance float64
+	// Smoothed coordinate
+	Position *FVec2
 
 	errorCount  int // Error count from smoothing algorithm
 	glitchCount int // Glitch count from smoothing algorithm
@@ -234,6 +238,8 @@ func square(f float64) float64 {
 	return f * f
 }
 
+// NewIRPointer allocates a new IRPointer. params can alter some functionality
+// but can also be nil'ed to use default parameters
 func NewIRPointer(params *IRParams) *IRPointer {
 	ir := &IRPointer{}
 	ir.params = &DefaultIRParams
@@ -476,19 +482,19 @@ func (ir *IRPointer) updateSensorbar(slots [4]IRSlot, roll float64) (raw FVec2, 
 }
 
 func (ir *IRPointer) applySmoothing(raw FVec2) {
-	dx := raw.X - ir.Smooth.X
-	dy := raw.Y - ir.Smooth.Y
+	dx := raw.X - ir.Position.X
+	dy := raw.Y - ir.Position.Y
 	d := math.Sqrt(square(dx) + square(dy))
 	if d <= ir.params.SmootherDeadzone {
 		return
 	}
 	if d < ir.params.SmootherRadius {
-		ir.Smooth.X += dx * ir.params.SmootherSpeed
-		ir.Smooth.Y += dy * ir.params.SmootherSpeed
+		ir.Position.X += dx * ir.params.SmootherSpeed
+		ir.Position.Y += dy * ir.params.SmootherSpeed
 	} else {
 		theta := math.Atan2(dy, dx)
-		ir.Smooth.X = raw.X - math.Cos(theta)*ir.params.SmootherRadius
-		ir.Smooth.Y = raw.Y - math.Sin(theta)*ir.params.SmootherRadius
+		ir.Position.X = raw.X - math.Cos(theta)*ir.params.SmootherRadius
+		ir.Position.Y = raw.Y - math.Sin(theta)*ir.params.SmootherRadius
 	}
 }
 
@@ -511,7 +517,7 @@ func (ir *IRPointer) UpdateRoll(slots [4]IRSlot, roll float64) {
 
 	if !ok {
 		if ir.errorCount >= ir.params.ErrorMaxCount {
-			ir.Smooth = nil
+			ir.Position = nil
 		} else {
 			ir.errorCount++
 		}
@@ -520,10 +526,10 @@ func (ir *IRPointer) UpdateRoll(slots [4]IRSlot, roll float64) {
 
 	ir.Distance = distance
 	if ir.errorCount >= ir.params.ErrorMaxCount {
-		ir.Smooth = &raw
+		ir.Position = &raw
 		ir.glitchCount = 0
 	} else {
-		d := square(raw.X-ir.Smooth.X) + square(raw.Y-ir.Smooth.Y)
+		d := square(raw.X-ir.Position.X) + square(raw.Y-ir.Position.Y)
 		if d > ir.params.GlitchDistance {
 			if ir.glitchCount > ir.params.GlitchMaxCount {
 				ir.applySmoothing(raw)

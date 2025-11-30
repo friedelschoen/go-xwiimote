@@ -31,8 +31,6 @@ type Monitor struct {
 // A monitor always provides all devices that are available on a system
 // and hot-plugged devices.
 //
-// You can use Poller[T] over a Monitor to efficiently wait for new devices.
-//
 // The object and underlying structure is freed automatically by default.
 func NewMonitor(typ MonitorType) *Monitor {
 	mon := new(Monitor)

@@ -1,3 +1,4 @@
+// Package virtdev can create a Virtual Input using uinput
 package virtdev
 
 import (
@@ -27,12 +28,14 @@ var defaultUinputConstructor = uinputConstructor{
 
 type UinputOption func(*uinputConstructor)
 
+// WithUinputPath sets the location of /dev/uinput
 func WithUinputPath(path string) UinputOption {
 	return func(uc *uinputConstructor) {
 		uc.path = path
 	}
 }
 
+// WithVendorProduct sets the vendor and product ID and version of this device
 func WithVendorProduct(vendor, product, version uint16) UinputOption {
 	return func(uc *uinputConstructor) {
 		uc.id.Vendor = vendor
@@ -94,19 +97,6 @@ func (dev *uinputDevice) create() error {
 	return err
 }
 
-func (dev *uinputDevice) GetSyspath() (string, error) {
-	sysInputDir := "/sys/devices/virtual/input/"
-	var path [uiSysnameLen + 1]byte
-	err := dev.ioctl(uiGetSysname, uintptr(unsafe.Pointer(&path[0])))
-	n := bytes.IndexByte(path[:], 0)
-	if n < 0 {
-		n = len(path)
-	}
-	name := string(path[:n])
-	sysInputDir += name
-	return sysInputDir, err
-}
-
 func (dev *uinputDevice) emit(typ, code uint16, value int32) error {
 	ev := inputEvent{
 		Time:  syscall.Timeval{},
@@ -125,14 +115,6 @@ func (dev *uinputDevice) sync() (err error) {
 	return dev.emit(evSyn, synReport, 0)
 }
 
-func (dev *uinputDevice) Close() (err error) {
-	err = dev.releaseDevice()
-	if err != nil {
-		return fmt.Errorf("failed to close device: %w", err)
-	}
-	return dev.deviceFile.Close()
-}
-
 func (dev *uinputDevice) releaseDevice() (err error) {
 	return dev.ioctl(uiDevDestroy, uintptr(0))
 }
@@ -145,6 +127,34 @@ func (dev *uinputDevice) ioctl(cmd, ptr uintptr) error {
 	return err
 }
 
+// GetSyspath returns the sysfs path of the device. It lays somewhere at /sys/devices/virtual/input/<name>
+func (dev *uinputDevice) GetSyspath() (string, error) {
+	name, err := dev.GetSysname()
+	sysInputDir := "/sys/devices/virtual/input/" + name
+	return sysInputDir, err
+}
+
+// GetSysname returns the internal sysfs name of the device.
+func (dev *uinputDevice) GetSysname() (string, error) {
+	var path [uiSysnameLen + 1]byte
+	err := dev.ioctl(uiGetSysname, uintptr(unsafe.Pointer(&path[0])))
+	n := bytes.IndexByte(path[:], 0)
+	if n < 0 {
+		return string(path[:]), err
+	}
+	return string(path[:n]), err
+}
+
+// Close releases its resources and closes the connection
+func (dev *uinputDevice) Close() (err error) {
+	err = dev.releaseDevice()
+	if err != nil {
+		return fmt.Errorf("failed to close device: %w", err)
+	}
+	return dev.deviceFile.Close()
+}
+
+// Key sets the state of key.
 func (dev *uinputDevice) Key(key Key, press bool) error {
 	var state int32
 	if press {

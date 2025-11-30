@@ -78,10 +78,10 @@ func watchDevice(path string) {
 			lastIR = nil
 			lastAccel = nil
 		}
-		if pointer.Health >= xwiimote.IRGood && pointer.Smooth != nil {
-			x, y := pointer.Smooth.X, pointer.Smooth.Y
+		if pointer.Health >= xwiimote.IRGood && pointer.Position != nil {
+			x, y := pointer.Position.X, pointer.Position.Y
 			if x >= -340 && x < 340 && y >= -92 && y < 290 {
-				fmt.Printf("[%v] pointer at (%.2f %.2f) at %.2fm distance\n", pointer.Health, pointer.Smooth.X, pointer.Smooth.Y, pointer.Distance)
+				fmt.Printf("[%v] pointer at (%.2f %.2f) at %.2fm distance\n", pointer.Health, pointer.Position.X, pointer.Position.Y, pointer.Distance)
 				err := mouse.Set(int32(x), int32(y))
 				fmt.Println(err)
 			}

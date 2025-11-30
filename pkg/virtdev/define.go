@@ -42,14 +42,9 @@ const (
 )
 
 type uinputSetup struct {
-	id             inputID
-	name           [uiMaxNameSize]byte
-	ff_effects_max uint32
-}
-
-func (setup uinputSetup) buffer() []byte {
-	buf := (*[unsafe.Sizeof(setup)]byte)(unsafe.Pointer(&setup))
-	return buf[:]
+	id           inputID
+	name         [uiMaxNameSize]byte
+	ffEffectsMax uint32
 }
 
 type inputID struct {
@@ -58,22 +53,6 @@ type inputID struct {
 	Product uint16
 	Version uint16
 }
-
-// // translated to go from uinput.h
-// type uinputUserDev struct {
-// 	Name       [uiMaxNameSize]byte
-// 	ID         inputID
-// 	EffectsMax uint32
-// 	Absmax     [absSize]int32
-// 	Absmin     [absSize]int32
-// 	Absfuzz    [absSize]int32
-// 	Absflat    [absSize]int32
-// }
-
-// func (userDev uinputUserDev) buffer() []byte {
-// 	buf := (*[unsafe.Sizeof(userDev)]byte)(unsafe.Pointer(&userDev))
-// 	return buf[:]
-// }
 
 // translated to go from input.h
 type inputEvent struct {
@@ -98,12 +77,11 @@ type absInfo struct {
 }
 
 type absSetup struct {
-	code    uint16 /* axis code */
+	code    uint16 // axis code
 	absinfo absInfo
 }
 
-// the constants that are defined here relate 1:1 to the constants defined in input.h and represent actual
-// key codes that can be triggered as key events
+// Key is used by Keyboard and Mouse to represent a physical key-press. The keys are obtained directly from input.h.
 type Key uint16
 
 const (
@@ -223,11 +201,11 @@ const (
 	KeyMute             Key = C.KEY_MUTE
 	KeyVolumedown       Key = C.KEY_VOLUMEDOWN
 	KeyVolumeup         Key = C.KEY_VOLUMEUP
-	KeyPower            Key = C.KEY_POWER /* SC System Power Down */
+	KeyPower            Key = C.KEY_POWER // SC System Power Down
 	KeyKpequal          Key = C.KEY_KPEQUAL
 	KeyKpplusminus      Key = C.KEY_KPPLUSMINUS
 	KeyPause            Key = C.KEY_PAUSE
-	KeyScale            Key = C.KEY_SCALE /* AL Compiz Scale (Expose) */
+	KeyScale            Key = C.KEY_SCALE // AL Compiz Scale (Expose)
 
 	KeyKpcomma   Key = C.KEY_KPCOMMA
 	KeyHangeul   Key = C.KEY_HANGEUL
@@ -238,40 +216,40 @@ const (
 	KeyRightmeta Key = C.KEY_RIGHTMETA
 	KeyCompose   Key = C.KEY_COMPOSE
 
-	KeyStop          Key = C.KEY_STOP /* AC Stop */
+	KeyStop          Key = C.KEY_STOP // AC Stop
 	KeyAgain         Key = C.KEY_AGAIN
-	KeyProps         Key = C.KEY_PROPS /* AC Properties */
-	KeyUndo          Key = C.KEY_UNDO  /* AC Undo */
+	KeyProps         Key = C.KEY_PROPS // AC Properties
+	KeyUndo          Key = C.KEY_UNDO  // AC Undo
 	KeyFront         Key = C.KEY_FRONT
-	KeyCopy          Key = C.KEY_COPY  /* AC Copy */
-	KeyOpen          Key = C.KEY_OPEN  /* AC Open */
-	KeyPaste         Key = C.KEY_PASTE /* AC Paste */
-	KeyFind          Key = C.KEY_FIND  /* AC Search */
-	KeyCut           Key = C.KEY_CUT   /* AC Cut */
-	KeyHelp          Key = C.KEY_HELP  /* AL Integrated Help Center */
-	KeyMenu          Key = C.KEY_MENU  /* Menu (show menu) */
-	KeyCalc          Key = C.KEY_CALC  /* AL Calculator */
+	KeyCopy          Key = C.KEY_COPY  // AC Copy
+	KeyOpen          Key = C.KEY_OPEN  // AC Open
+	KeyPaste         Key = C.KEY_PASTE // AC Paste
+	KeyFind          Key = C.KEY_FIND  // AC Search
+	KeyCut           Key = C.KEY_CUT   // AC Cut
+	KeyHelp          Key = C.KEY_HELP  // AL Integrated Help Center
+	KeyMenu          Key = C.KEY_MENU  // Menu (show menu)
+	KeyCalc          Key = C.KEY_CALC  // AL Calculator
 	KeySetup         Key = C.KEY_SETUP
-	KeySleep         Key = C.KEY_SLEEP  /* SC System Sleep */
-	KeyWakeup        Key = C.KEY_WAKEUP /* System Wake Up */
-	KeyFile          Key = C.KEY_FILE   /* AL Local Machine Browser */
+	KeySleep         Key = C.KEY_SLEEP  // SC System Sleep
+	KeyWakeup        Key = C.KEY_WAKEUP // System Wake Up
+	KeyFile          Key = C.KEY_FILE   // AL Local Machine Browser
 	KeySendfile      Key = C.KEY_SENDFILE
 	KeyDeletefile    Key = C.KEY_DELETEFILE
 	KeyXfer          Key = C.KEY_XFER
 	KeyProg1         Key = C.KEY_PROG1
 	KeyProg2         Key = C.KEY_PROG2
-	KeyWww           Key = C.KEY_WWW /* AL Internet Browser */
+	KeyWww           Key = C.KEY_WWW // AL Internet Browser
 	KeyMsdos         Key = C.KEY_MSDOS
-	KeyCoffee        Key = C.KEY_COFFEE /* AL Terminal Lock/Screensaver */
+	KeyCoffee        Key = C.KEY_COFFEE // AL Terminal Lock/Screensaver
 	KeyScreenlock    Key = C.KEY_SCREENLOCK
-	KeyRotateDisplay Key = C.KEY_ROTATE_DISPLAY /* Display orientation for e.g. tablets */
+	KeyRotateDisplay Key = C.KEY_ROTATE_DISPLAY // Display orientation for e.g. tablets
 	KeyDirection     Key = C.KEY_DIRECTION
 	KeyCyclewindows  Key = C.KEY_CYCLEWINDOWS
 	KeyMail          Key = C.KEY_MAIL
-	KeyBookmarks     Key = C.KEY_BOOKMARKS /* AC Bookmarks */
+	KeyBookmarks     Key = C.KEY_BOOKMARKS // AC Bookmarks
 	KeyComputer      Key = C.KEY_COMPUTER
-	KeyBack          Key = C.KEY_BACK    /* AC Back */
-	KeyForward       Key = C.KEY_FORWARD /* AC Forward */
+	KeyBack          Key = C.KEY_BACK    // AC Back
+	KeyForward       Key = C.KEY_FORWARD // AC Forward
 	KeyClosecd       Key = C.KEY_CLOSECD
 	KeyEjectcd       Key = C.KEY_EJECTCD
 	KeyEjectclosecd  Key = C.KEY_EJECTCLOSECD
@@ -281,20 +259,20 @@ const (
 	KeyStopcd        Key = C.KEY_STOPCD
 	KeyRecord        Key = C.KEY_RECORD
 	KeyRewind        Key = C.KEY_REWIND
-	KeyPhone         Key = C.KEY_PHONE /* Media Select Telephone */
+	KeyPhone         Key = C.KEY_PHONE // Media Select Telephone
 	KeyIso           Key = C.KEY_ISO
-	KeyConfig        Key = C.KEY_CONFIG   /* AL Consumer Control Configuration */
-	KeyHomepage      Key = C.KEY_HOMEPAGE /* AC Home */
-	KeyRefresh       Key = C.KEY_REFRESH  /* AC Refresh */
-	KeyExit          Key = C.KEY_EXIT     /* AC Exit */
+	KeyConfig        Key = C.KEY_CONFIG   // AL Consumer Control Configuration
+	KeyHomepage      Key = C.KEY_HOMEPAGE // AC Home
+	KeyRefresh       Key = C.KEY_REFRESH  // AC Refresh
+	KeyExit          Key = C.KEY_EXIT     // AC Exit
 	KeyMove          Key = C.KEY_MOVE
 	KeyEdit          Key = C.KEY_EDIT
 	KeyScrollup      Key = C.KEY_SCROLLUP
 	KeyScrolldown    Key = C.KEY_SCROLLDOWN
 	KeyKpleftparen   Key = C.KEY_KPLEFTPAREN
 	KeyKprightparen  Key = C.KEY_KPRIGHTPAREN
-	KeyNew           Key = C.KEY_NEW  /* AC New */
-	KeyRedo          Key = C.KEY_REDO /* AC Redo/Repeat */
+	KeyNew           Key = C.KEY_NEW  // AC New
+	KeyRedo          Key = C.KEY_REDO // AC Redo/Repeat
 
 	KeyF13 Key = C.KEY_F13
 	KeyF14 Key = C.KEY_F14
@@ -313,14 +291,14 @@ const (
 	KeyPausecd         Key = C.KEY_PAUSECD
 	KeyProg3           Key = C.KEY_PROG3
 	KeyProg4           Key = C.KEY_PROG4
-	KeyAllApplications Key = C.KEY_ALL_APPLICATIONS /* AC Desktop Show All Applications */
+	KeyAllApplications Key = C.KEY_ALL_APPLICATIONS // AC Desktop Show All Applications
 	KeyDashboard       Key = C.KEY_DASHBOARD
 	KeySuspend         Key = C.KEY_SUSPEND
-	KeyClose           Key = C.KEY_CLOSE /* AC Close */
+	KeyClose           Key = C.KEY_CLOSE // AC Close
 	KeyPlay            Key = C.KEY_PLAY
 	KeyFastforward     Key = C.KEY_FASTFORWARD
 	KeyBassboost       Key = C.KEY_BASSBOOST
-	KeyPrint           Key = C.KEY_PRINT /* AC Print */
+	KeyPrint           Key = C.KEY_PRINT // AC Print
 	KeyHp              Key = C.KEY_HP
 	KeyCamera          Key = C.KEY_CAMERA
 	KeySound           Key = C.KEY_SOUND
@@ -329,25 +307,24 @@ const (
 	KeyChat            Key = C.KEY_CHAT
 	KeySearch          Key = C.KEY_SEARCH
 	KeyConnect         Key = C.KEY_CONNECT
-	KeyFinance         Key = C.KEY_FINANCE /* AL Checkbook/Finance */
+	KeyFinance         Key = C.KEY_FINANCE // AL Checkbook/Finance
 	KeySport           Key = C.KEY_SPORT
 	KeyShop            Key = C.KEY_SHOP
 	KeyAlterase        Key = C.KEY_ALTERASE
-	KeyCancel          Key = C.KEY_CANCEL /* AC Cancel */
+	KeyCancel          Key = C.KEY_CANCEL // AC Cancel
 	KeyBrightnessdown  Key = C.KEY_BRIGHTNESSDOWN
 	KeyBrightnessup    Key = C.KEY_BRIGHTNESSUP
 	KeyMedia           Key = C.KEY_MEDIA
 
-	KeySwitchvideomode Key = C.KEY_SWITCHVIDEOMODE /* Cycle between available video
-	   outputs (Monitor/LCD/TV-out/etc) */
-	KeyKbdillumtoggle Key = C.KEY_KBDILLUMTOGGLE
-	KeyKbdillumdown   Key = C.KEY_KBDILLUMDOWN
-	KeyKbdillumup     Key = C.KEY_KBDILLUMUP
+	KeySwitchvideomode Key = C.KEY_SWITCHVIDEOMODE // Cycle between available video	outputs (Monitor/LCD/TV-out/etc)
+	KeyKbdillumtoggle  Key = C.KEY_KBDILLUMTOGGLE
+	KeyKbdillumdown    Key = C.KEY_KBDILLUMDOWN
+	KeyKbdillumup      Key = C.KEY_KBDILLUMUP
 
-	KeySend        Key = C.KEY_SEND        /* AC Send */
-	KeyReply       Key = C.KEY_REPLY       /* AC Reply */
-	KeyForwardmail Key = C.KEY_FORWARDMAIL /* AC Forward Msg */
-	KeySave        Key = C.KEY_SAVE        /* AC Save */
+	KeySend        Key = C.KEY_SEND        // AC Send
+	KeyReply       Key = C.KEY_REPLY       // AC Reply
+	KeyForwardmail Key = C.KEY_FORWARDMAIL // AC Forward Msg
+	KeySave        Key = C.KEY_SAVE        // AC Save
 	KeyDocuments   Key = C.KEY_DOCUMENTS
 
 	KeyBattery Key = C.KEY_BATTERY
@@ -358,22 +335,20 @@ const (
 
 	KeyUnknown Key = C.KEY_UNKNOWN
 
-	KeyVideoNext       Key = C.KEY_VIDEO_NEXT       /* drive next video source */
-	KeyVideoPrev       Key = C.KEY_VIDEO_PREV       /* drive previous video source */
-	KeyBrightnessCycle Key = C.KEY_BRIGHTNESS_CYCLE /* brightness up, after max is min */
-	KeyBrightnessAuto  Key = C.KEY_BRIGHTNESS_AUTO  /* Set Auto Brightness: manual
-	brightness control is off,
-	rely on ambient */
-	KeyBrightnessZero Key = C.KEY_BRIGHTNESS_ZERO
-	KeyDisplayOff     Key = C.KEY_DISPLAY_OFF /* display device to off state */
+	KeyVideoNext       Key = C.KEY_VIDEO_NEXT       // drive next video source
+	KeyVideoPrev       Key = C.KEY_VIDEO_PREV       // drive previous video source
+	KeyBrightnessCycle Key = C.KEY_BRIGHTNESS_CYCLE // brightness up, after max is min
+	KeyBrightnessAuto  Key = C.KEY_BRIGHTNESS_AUTO  // Set Auto Brightness: manual brightness control is off, rely on ambient
+	KeyBrightnessZero  Key = C.KEY_BRIGHTNESS_ZERO
+	KeyDisplayOff      Key = C.KEY_DISPLAY_OFF // display device to off state
 
-	KeyWwan   Key = C.KEY_WWAN /* Wireless WAN (LTE, UMTS, GSM, etc.) */
+	KeyWwan   Key = C.KEY_WWAN // Wireless WAN (LTE, UMTS, GSM, etc.)
 	KeyWimax  Key = C.KEY_WIMAX
-	KeyRfkill Key = C.KEY_RFKILL /* Key that controls all radios */
+	KeyRfkill Key = C.KEY_RFKILL // Key that controls all radios
 
-	KeyMicmute Key = C.KEY_MICMUTE /* Mute / unmute the microphone */
+	KeyMicmute Key = C.KEY_MICMUTE // Mute / unmute the microphone
 
-	/* Code 255 is reserved for special needs of AT keyboard driver */
+	// Code 255 is reserved for special needs of AT keyboard driver
 
 	ButtonMisc Key = C.BTN_MISC
 	Button0    Key = C.BTN_0
@@ -442,14 +417,14 @@ const (
 	ButtonToolFinger    Key = C.BTN_TOOL_FINGER
 	ButtonToolMouse     Key = C.BTN_TOOL_MOUSE
 	ButtonToolLens      Key = C.BTN_TOOL_LENS
-	ButtonToolQuinttap  Key = C.BTN_TOOL_QUINTTAP /* Five fingers on trackpad */
+	ButtonToolQuinttap  Key = C.BTN_TOOL_QUINTTAP // Five fingers on trackpad
 	ButtonStylus3       Key = C.BTN_STYLUS3
 	ButtonTouch         Key = C.BTN_TOUCH
 	ButtonStylus        Key = C.BTN_STYLUS
 	ButtonStylus2       Key = C.BTN_STYLUS2
 	ButtonToolDoubletap Key = C.BTN_TOOL_DOUBLETAP
 	ButtonToolTripletap Key = C.BTN_TOOL_TRIPLETAP
-	ButtonToolQuadtap   Key = C.BTN_TOOL_QUADTAP /* Four fingers on trackpad */
+	ButtonToolQuadtap   Key = C.BTN_TOOL_QUADTAP // Four fingers on trackpad
 
 	ButtonWheel    Key = C.BTN_WHEEL
 	ButtonGearDown Key = C.BTN_GEAR_DOWN
@@ -461,56 +436,56 @@ const (
 	KeyClear            Key = C.KEY_CLEAR
 	KeyPower2           Key = C.KEY_POWER2
 	KeyOption           Key = C.KEY_OPTION
-	KeyInfo             Key = C.KEY_INFO /* AL OEM Features/Tips/Tutorial */
+	KeyInfo             Key = C.KEY_INFO // AL OEM Features/Tips/Tutorial
 	KeyTime             Key = C.KEY_TIME
 	KeyVendor           Key = C.KEY_VENDOR
 	KeyArchive          Key = C.KEY_ARCHIVE
-	KeyProgram          Key = C.KEY_PROGRAM /* Media Select Program Guide */
+	KeyProgram          Key = C.KEY_PROGRAM // Media Select Program Guide
 	KeyChannel          Key = C.KEY_CHANNEL
 	KeyFavorites        Key = C.KEY_FAVORITES
 	KeyEpg              Key = C.KEY_EPG
-	KeyPvr              Key = C.KEY_PVR /* Media Select Home */
+	KeyPvr              Key = C.KEY_PVR // Media Select Home
 	KeyMhp              Key = C.KEY_MHP
 	KeyLanguage         Key = C.KEY_LANGUAGE
 	KeyTitle            Key = C.KEY_TITLE
 	KeySubtitle         Key = C.KEY_SUBTITLE
 	KeyAngle            Key = C.KEY_ANGLE
-	KeyFullScreen       Key = C.KEY_FULL_SCREEN /* AC View Toggle */
+	KeyFullScreen       Key = C.KEY_FULL_SCREEN // AC View Toggle
 	KeyZoom             Key = C.KEY_ZOOM
 	KeyMode             Key = C.KEY_MODE
 	KeyKeyboard         Key = C.KEY_KEYBOARD
-	KeyAspectRatio      Key = C.KEY_ASPECT_RATIO /* HUTRR37: Aspect */
+	KeyAspectRatio      Key = C.KEY_ASPECT_RATIO // HUTRR37: Aspect
 	KeyScreen           Key = C.KEY_SCREEN
-	KeyPc               Key = C.KEY_PC   /* Media Select Computer */
-	KeyTv               Key = C.KEY_TV   /* Media Select TV */
-	KeyTv2              Key = C.KEY_TV2  /* Media Select Cable */
-	KeyVcr              Key = C.KEY_VCR  /* Media Select VCR */
-	KeyVcr2             Key = C.KEY_VCR2 /* VCR Plus */
-	KeySat              Key = C.KEY_SAT  /* Media Select Satellite */
+	KeyPc               Key = C.KEY_PC   // Media Select Computer
+	KeyTv               Key = C.KEY_TV   // Media Select TV
+	KeyTv2              Key = C.KEY_TV2  // Media Select Cable
+	KeyVcr              Key = C.KEY_VCR  // Media Select VCR
+	KeyVcr2             Key = C.KEY_VCR2 // VCR Plus
+	KeySat              Key = C.KEY_SAT  // Media Select Satellite
 	KeySat2             Key = C.KEY_SAT2
-	KeyCd               Key = C.KEY_CD   /* Media Select CD */
-	KeyTape             Key = C.KEY_TAPE /* Media Select Tape */
+	KeyCd               Key = C.KEY_CD   // Media Select CD
+	KeyTape             Key = C.KEY_TAPE // Media Select Tape
 	KeyRadio            Key = C.KEY_RADIO
-	KeyTuner            Key = C.KEY_TUNER /* Media Select Tuner */
+	KeyTuner            Key = C.KEY_TUNER // Media Select Tuner
 	KeyPlayer           Key = C.KEY_PLAYER
 	KeyText             Key = C.KEY_TEXT
-	KeyDvd              Key = C.KEY_DVD /* Media Select DVD */
+	KeyDvd              Key = C.KEY_DVD // Media Select DVD
 	KeyAux              Key = C.KEY_AUX
 	KeyMp3              Key = C.KEY_MP3
-	KeyAudio            Key = C.KEY_AUDIO /* AL Audio Browser */
-	KeyVideo            Key = C.KEY_VIDEO /* AL Movie Browser */
+	KeyAudio            Key = C.KEY_AUDIO // AL Audio Browser
+	KeyVideo            Key = C.KEY_VIDEO // AL Movie Browser
 	KeyDirectory        Key = C.KEY_DIRECTORY
 	KeyList             Key = C.KEY_LIST
-	KeyMemo             Key = C.KEY_MEMO /* Media Select Messages */
+	KeyMemo             Key = C.KEY_MEMO // Media Select Messages
 	KeyCalendar         Key = C.KEY_CALENDAR
 	KeyRed              Key = C.KEY_RED
 	KeyGreen            Key = C.KEY_GREEN
 	KeyYellow           Key = C.KEY_YELLOW
 	KeyBlue             Key = C.KEY_BLUE
-	KeyChannelup        Key = C.KEY_CHANNELUP   /* Channel Increment */
-	KeyChanneldown      Key = C.KEY_CHANNELDOWN /* Channel Decrement */
+	KeyChannelup        Key = C.KEY_CHANNELUP   // Channel Increment
+	KeyChanneldown      Key = C.KEY_CHANNELDOWN // Channel Decrement
 	KeyFirst            Key = C.KEY_FIRST
-	KeyLast             Key = C.KEY_LAST /* Recall Last */
+	KeyLast             Key = C.KEY_LAST // Recall Last
 	KeyAb               Key = C.KEY_AB
 	KeyNext             Key = C.KEY_NEXT
 	KeyRestart          Key = C.KEY_RESTART
@@ -521,40 +496,40 @@ const (
 	KeyDigits           Key = C.KEY_DIGITS
 	KeyTeen             Key = C.KEY_TEEN
 	KeyTwen             Key = C.KEY_TWEN
-	KeyVideophone       Key = C.KEY_VIDEOPHONE     /* Media Select Video Phone */
-	KeyGames            Key = C.KEY_GAMES          /* Media Select Games */
-	KeyZoomin           Key = C.KEY_ZOOMIN         /* AC Zoom In */
-	KeyZoomout          Key = C.KEY_ZOOMOUT        /* AC Zoom Out */
-	KeyZoomreset        Key = C.KEY_ZOOMRESET      /* AC Zoom */
-	KeyWordprocessor    Key = C.KEY_WORDPROCESSOR  /* AL Word Processor */
-	KeyEditor           Key = C.KEY_EDITOR         /* AL Text Editor */
-	KeySpreadsheet      Key = C.KEY_SPREADSHEET    /* AL Spreadsheet */
-	KeyGraphicseditor   Key = C.KEY_GRAPHICSEDITOR /* AL Graphics Editor */
-	KeyPresentation     Key = C.KEY_PRESENTATION   /* AL Presentation App */
-	KeyDatabase         Key = C.KEY_DATABASE       /* AL Database App */
-	KeyNews             Key = C.KEY_NEWS           /* AL Newsreader */
-	KeyVoicemail        Key = C.KEY_VOICEMAIL      /* AL Voicemail */
-	KeyAddressbook      Key = C.KEY_ADDRESSBOOK    /* AL Contacts/Address Book */
-	KeyMessenger        Key = C.KEY_MESSENGER      /* AL Instant Messaging */
-	KeyDisplaytoggle    Key = C.KEY_DISPLAYTOGGLE  /* Turn display (LCD) on and off */
+	KeyVideophone       Key = C.KEY_VIDEOPHONE     // Media Select Video Phone
+	KeyGames            Key = C.KEY_GAMES          // Media Select Games
+	KeyZoomin           Key = C.KEY_ZOOMIN         // AC Zoom In
+	KeyZoomout          Key = C.KEY_ZOOMOUT        // AC Zoom Out
+	KeyZoomreset        Key = C.KEY_ZOOMRESET      // AC Zoom
+	KeyWordprocessor    Key = C.KEY_WORDPROCESSOR  // AL Word Processor
+	KeyEditor           Key = C.KEY_EDITOR         // AL Text Editor
+	KeySpreadsheet      Key = C.KEY_SPREADSHEET    // AL Spreadsheet
+	KeyGraphicseditor   Key = C.KEY_GRAPHICSEDITOR // AL Graphics Editor
+	KeyPresentation     Key = C.KEY_PRESENTATION   // AL Presentation App
+	KeyDatabase         Key = C.KEY_DATABASE       // AL Database App
+	KeyNews             Key = C.KEY_NEWS           // AL Newsreader
+	KeyVoicemail        Key = C.KEY_VOICEMAIL      // AL Voicemail
+	KeyAddressbook      Key = C.KEY_ADDRESSBOOK    // AL Contacts/Address Book
+	KeyMessenger        Key = C.KEY_MESSENGER      // AL Instant Messaging
+	KeyDisplaytoggle    Key = C.KEY_DISPLAYTOGGLE  // Turn display (LCD) on and off
 	KeyBrightnessToggle Key = C.KEY_BRIGHTNESS_TOGGLE
-	KeySpellcheck       Key = C.KEY_SPELLCHECK /* AL Spell Check */
-	KeyLogoff           Key = C.KEY_LOGOFF     /* AL Logoff */
+	KeySpellcheck       Key = C.KEY_SPELLCHECK // AL Spell Check
+	KeyLogoff           Key = C.KEY_LOGOFF     // AL Logoff
 
 	KeyDollar Key = C.KEY_DOLLAR
 	KeyEuro   Key = C.KEY_EURO
 
-	KeyFrameback          Key = C.KEY_FRAMEBACK /* Consumer - transport controls */
+	KeyFrameback          Key = C.KEY_FRAMEBACK // Consumer - transport controls
 	KeyFrameforward       Key = C.KEY_FRAMEFORWARD
-	KeyContextMenu        Key = C.KEY_CONTEXT_MENU        /* GenDesc - system context menu */
-	KeyMediaRepeat        Key = C.KEY_MEDIA_REPEAT        /* Consumer - transport control */
-	Key10channelsup       Key = C.KEY_10CHANNELSUP        /* 10 channels up (10+) */
-	Key10channelsdown     Key = C.KEY_10CHANNELSDOWN      /* 10 channels down (10-) */
-	KeyImages             Key = C.KEY_IMAGES              /* AL Image Browser */
-	KeyNotificationCenter Key = C.KEY_NOTIFICATION_CENTER /* Show/hide the notification center */
-	KeyPickupPhone        Key = C.KEY_PICKUP_PHONE        /* Answer incoming call */
-	KeyHangupPhone        Key = C.KEY_HANGUP_PHONE        /* Decline incoming call */
-	KeyLinkPhone          Key = C.KEY_LINK_PHONE          /* AL Phone Syncing */
+	KeyContextMenu        Key = C.KEY_CONTEXT_MENU        // GenDesc - system context menu
+	KeyMediaRepeat        Key = C.KEY_MEDIA_REPEAT        // Consumer - transport control
+	Key10channelsup       Key = C.KEY_10CHANNELSUP        // 10 channels up (10+)
+	Key10channelsdown     Key = C.KEY_10CHANNELSDOWN      // 10 channels down (10-)
+	KeyImages             Key = C.KEY_IMAGES              // AL Image Browser
+	KeyNotificationCenter Key = C.KEY_NOTIFICATION_CENTER // Show/hide the notification center
+	KeyPickupPhone        Key = C.KEY_PICKUP_PHONE        // Answer incoming call
+	KeyHangupPhone        Key = C.KEY_HANGUP_PHONE        // Decline incoming call
+	KeyLinkPhone          Key = C.KEY_LINK_PHONE          // AL Phone Syncing
 
 	KeyDelEol  Key = C.KEY_DEL_EOL
 	KeyDelEos  Key = C.KEY_DEL_EOS
@@ -595,8 +570,8 @@ const (
 	KeyBrlDot9  Key = C.KEY_BRL_DOT9
 	KeyBrlDot10 Key = C.KEY_BRL_DOT10
 
-	KeyNumeric0     Key = C.KEY_NUMERIC_0 /* used by phones, remote controls, */
-	KeyNumeric1     Key = C.KEY_NUMERIC_1 /* and other keypads */
+	KeyNumeric0     Key = C.KEY_NUMERIC_0 // used by phones, remote controls,
+	KeyNumeric1     Key = C.KEY_NUMERIC_1 // and other keypads
 	KeyNumeric2     Key = C.KEY_NUMERIC_2
 	KeyNumeric3     Key = C.KEY_NUMERIC_3
 	KeyNumeric4     Key = C.KEY_NUMERIC_4
@@ -607,15 +582,15 @@ const (
 	KeyNumeric9     Key = C.KEY_NUMERIC_9
 	KeyNumericStar  Key = C.KEY_NUMERIC_STAR
 	KeyNumericPound Key = C.KEY_NUMERIC_POUND
-	KeyNumericA     Key = C.KEY_NUMERIC_A /* Phone key A - HUT Telephony 0xb9 */
+	KeyNumericA     Key = C.KEY_NUMERIC_A // Phone key A - HUT Telephony 0xb9
 	KeyNumericB     Key = C.KEY_NUMERIC_B
 	KeyNumericC     Key = C.KEY_NUMERIC_C
 	KeyNumericD     Key = C.KEY_NUMERIC_D
 
 	KeyCameraFocus Key = C.KEY_CAMERA_FOCUS
-	KeyWpsButton   Key = C.KEY_WPS_BUTTON /* WiFi Protected Setup key */
+	KeyWpsButton   Key = C.KEY_WPS_BUTTON // WiFi Protected Setup key
 
-	KeyTouchpadToggle Key = C.KEY_TOUCHPAD_TOGGLE /* Request switch touchpad on or off */
+	KeyTouchpadToggle Key = C.KEY_TOUCHPAD_TOGGLE // Request switch touchpad on or off
 	KeyTouchpadOn     Key = C.KEY_TOUCHPAD_ON
 	KeyTouchpadOff    Key = C.KEY_TOUCHPAD_OFF
 
@@ -628,37 +603,37 @@ const (
 
 	KeyAttendantOn     Key = C.KEY_ATTENDANT_ON
 	KeyAttendantOff    Key = C.KEY_ATTENDANT_OFF
-	KeyAttendantToggle Key = C.KEY_ATTENDANT_TOGGLE /* Attendant call on or off */
-	KeyLightsToggle    Key = C.KEY_LIGHTS_TOGGLE    /* Reading light on or off */
+	KeyAttendantToggle Key = C.KEY_ATTENDANT_TOGGLE // Attendant call on or off
+	KeyLightsToggle    Key = C.KEY_LIGHTS_TOGGLE    // Reading light on or off
 
 	ButtonDpadUp    Key = C.BTN_DPAD_UP
 	ButtonDpadDown  Key = C.BTN_DPAD_DOWN
 	ButtonDpadLeft  Key = C.BTN_DPAD_LEFT
 	ButtonDpadRight Key = C.BTN_DPAD_RIGHT
 
-	KeyAlsToggle         Key = C.KEY_ALS_TOGGLE          /* Ambient light sensor */
-	KeyRotateLockToggle  Key = C.KEY_ROTATE_LOCK_TOGGLE  /* Display rotation lock */
-	KeyRefreshRateToggle Key = C.KEY_REFRESH_RATE_TOGGLE /* Display refresh rate toggle */
+	KeyAlsToggle         Key = C.KEY_ALS_TOGGLE          // Ambient light sensor
+	KeyRotateLockToggle  Key = C.KEY_ROTATE_LOCK_TOGGLE  // Display rotation lock
+	KeyRefreshRateToggle Key = C.KEY_REFRESH_RATE_TOGGLE // Display refresh rate toggle
 
-	KeyButtonconfig        Key = C.KEY_BUTTONCONFIG          /* AL Button Configuration */
-	KeyTaskmanager         Key = C.KEY_TASKMANAGER           /* AL Task/Project Manager */
-	KeyJournal             Key = C.KEY_JOURNAL               /* AL Log/Journal/Timecard */
-	KeyControlpanel        Key = C.KEY_CONTROLPANEL          /* AL Control Panel */
-	KeyAppselect           Key = C.KEY_APPSELECT             /* AL Select Task/Application */
-	KeyScreensaver         Key = C.KEY_SCREENSAVER           /* AL Screen Saver */
-	KeyVoicecommand        Key = C.KEY_VOICECOMMAND          /* Listening Voice Command */
-	KeyAssistant           Key = C.KEY_ASSISTANT             /* AL Context-aware desktop assistant */
-	KeyKbdLayoutNext       Key = C.KEY_KBD_LAYOUT_NEXT       /* AC Next Keyboard Layout Select */
-	KeyEmojiPicker         Key = C.KEY_EMOJI_PICKER          /* Show/hide emoji picker (HUTRR101) */
-	KeyDictate             Key = C.KEY_DICTATE               /* Start or Stop Voice Dictation Session (HUTRR99) */
-	KeyCameraAccessEnable  Key = C.KEY_CAMERA_ACCESS_ENABLE  /* Enables programmatic access to camera devices. (HUTRR72) */
-	KeyCameraAccessDisable Key = C.KEY_CAMERA_ACCESS_DISABLE /* Disables programmatic access to camera devices. (HUTRR72) */
-	KeyCameraAccessToggle  Key = C.KEY_CAMERA_ACCESS_TOGGLE  /* Toggles the current state of the camera access control. (HUTRR72) */
-	KeyAccessibility       Key = C.KEY_ACCESSIBILITY         /* Toggles the system bound accessibility UI/command (HUTRR116) */
-	KeyDoNotDisturb        Key = C.KEY_DO_NOT_DISTURB        /* Toggles the system-wide "Do Not Disturb" control (HUTRR94)*/
+	KeyButtonconfig        Key = C.KEY_BUTTONCONFIG          // AL Button Configuration
+	KeyTaskmanager         Key = C.KEY_TASKMANAGER           // AL Task/Project Manager
+	KeyJournal             Key = C.KEY_JOURNAL               // AL Log/Journal/Timecard
+	KeyControlpanel        Key = C.KEY_CONTROLPANEL          // AL Control Panel
+	KeyAppselect           Key = C.KEY_APPSELECT             // AL Select Task/Application
+	KeyScreensaver         Key = C.KEY_SCREENSAVER           // AL Screen Saver
+	KeyVoicecommand        Key = C.KEY_VOICECOMMAND          // Listening Voice Command
+	KeyAssistant           Key = C.KEY_ASSISTANT             // AL Context-aware desktop assistant
+	KeyKbdLayoutNext       Key = C.KEY_KBD_LAYOUT_NEXT       // AC Next Keyboard Layout Select
+	KeyEmojiPicker         Key = C.KEY_EMOJI_PICKER          // Show/hide emoji picker (HUTRR101)
+	KeyDictate             Key = C.KEY_DICTATE               // Start or Stop Voice Dictation Session (HUTRR99)
+	KeyCameraAccessEnable  Key = C.KEY_CAMERA_ACCESS_ENABLE  // Enables programmatic access to camera devices. (HUTRR72)
+	KeyCameraAccessDisable Key = C.KEY_CAMERA_ACCESS_DISABLE // Disables programmatic access to camera devices. (HUTRR72)
+	KeyCameraAccessToggle  Key = C.KEY_CAMERA_ACCESS_TOGGLE  // Toggles the current state of the camera access control. (HUTRR72)
+	KeyAccessibility       Key = C.KEY_ACCESSIBILITY         // Toggles the system bound accessibility UI/command (HUTRR116)
+	KeyDoNotDisturb        Key = C.KEY_DO_NOT_DISTURB        // Toggles the system-wide "Do Not Disturb" control (HUTRR94)
 
-	KeyBrightnessMin Key = C.KEY_BRIGHTNESS_MIN /* Set Brightness to Minimum */
-	KeyBrightnessMax Key = C.KEY_BRIGHTNESS_MAX /* Set Brightness to Maximum */
+	KeyBrightnessMin Key = C.KEY_BRIGHTNESS_MIN // Set Brightness to Minimum
+	KeyBrightnessMax Key = C.KEY_BRIGHTNESS_MAX // Set Brightness to Maximum
 
 	KeyKbdinputassistPrev      Key = C.KEY_KBDINPUTASSIST_PREV
 	KeyKbdinputassistNext      Key = C.KEY_KBDINPUTASSIST_NEXT
@@ -667,51 +642,49 @@ const (
 	KeyKbdinputassistAccept    Key = C.KEY_KBDINPUTASSIST_ACCEPT
 	KeyKbdinputassistCancel    Key = C.KEY_KBDINPUTASSIST_CANCEL
 
-	/* Diagonal movement keys */
+	// Diagonal movement keys
 	KeyRightUp   Key = C.KEY_RIGHT_UP
 	KeyRightDown Key = C.KEY_RIGHT_DOWN
 	KeyLeftUp    Key = C.KEY_LEFT_UP
 	KeyLeftDown  Key = C.KEY_LEFT_DOWN
 
-	KeyRootMenu Key = C.KEY_ROOT_MENU /* Show Device's Root Menu */
-	/* Show Top Menu of the Media (e.g. DVD) */
+	KeyRootMenu Key = C.KEY_ROOT_MENU // Show Device's Root Menu
+	// Show Top Menu of the Media (e.g. DVD)
 	KeyMediaTopMenu Key = C.KEY_MEDIA_TOP_MENU
 	KeyNumeric11    Key = C.KEY_NUMERIC_11
 	KeyNumeric12    Key = C.KEY_NUMERIC_12
-	/*
-	 * Toggle Audio Description: refers to an audio service that helps blind and
-	 * visually impaired consumers understand the action in a program. Note: in
-	 * some countries this is referred to as "Video Description".
-	 */
+
+	// Toggle Audio Description: refers to an audio service that helps blind and
+	// visually impaired consumers understand the action in a program. Note: in
+	// some countries this is referred to as "Video Description".
 	KeyAudioDesc    Key = C.KEY_AUDIO_DESC
 	Key3dMode       Key = C.KEY_3D_MODE
 	KeyNextFavorite Key = C.KEY_NEXT_FAVORITE
 	KeyStopRecord   Key = C.KEY_STOP_RECORD
 	KeyPauseRecord  Key = C.KEY_PAUSE_RECORD
-	KeyVod          Key = C.KEY_VOD /* Video on Demand */
+	KeyVod          Key = C.KEY_VOD // Video on Demand
 	KeyUnmute       Key = C.KEY_UNMUTE
 	KeyFastreverse  Key = C.KEY_FASTREVERSE
 	KeySlowreverse  Key = C.KEY_SLOWREVERSE
-	/*
-	 * Control a data application associated with the currently viewed channel,
-	 * e.g. teletext or data broadcast application (MHEG, MHP, HbbTV, etc.)
-	 */
+
+	// Control a data application associated with the currently viewed channel,
+	// e.g. teletext or data broadcast application (MHEG, MHP, HbbTV, etc.)
 	KeyData             Key = C.KEY_DATA
 	KeyOnscreenKeyboard Key = C.KEY_ONSCREEN_KEYBOARD
-	/* Electronic privacy screen control */
+	// Electronic privacy screen control
 	KeyPrivacyScreenToggle Key = C.KEY_PRIVACY_SCREEN_TOGGLE
 
-	/* Select an area of screen to be copied */
+	// Select an area of screen to be copied
 	KeySelectiveScreenshot Key = C.KEY_SELECTIVE_SCREENSHOT
 
-	/* Move the focus to the next or previous user controllable element within a UI container */
+	// Move the focus to the next or previous user controllable element within a UI container
 	KeyNextElement     Key = C.KEY_NEXT_ELEMENT
 	KeyPreviousElement Key = C.KEY_PREVIOUS_ELEMENT
 
-	/* Toggle Autopilot engagement */
+	// Toggle Autopilot engagement
 	KeyAutopilotEngageToggle Key = C.KEY_AUTOPILOT_ENGAGE_TOGGLE
 
-	/* Shortcut Keys */
+	// Shortcut Keys
 	KeyMarkWaypoint     Key = C.KEY_MARK_WAYPOINT
 	KeySos              Key = C.KEY_SOS
 	KeyNavChart         Key = C.KEY_NAV_CHART
@@ -725,21 +698,19 @@ const (
 	KeyNavInfo          Key = C.KEY_NAV_INFO
 	KeyBrightnessMenu   Key = C.KEY_BRIGHTNESS_MENU
 
-	/*
-	 * Some keyboards have keys which do not have a defined meaning, these keys
-	 * are intended to be programmed / bound to macros by the user. For most
-	 * keyboards with these macro-keys the key-sequence to inject, or action to
-	 * take, is all handled by software on the host side. So from the kernel's
-	 * point of view these are just normal keys.
-	 *
-	 * The KEY_MACRO# codes below are intended for such keys, which may be labeled
-	 * e.g. G1-G18, or S1 - S30. The KEY_MACRO# codes MUST NOT be used for keys
-	 * where the marking on the key does indicate a defined meaning / purpose.
-	 *
-	 * The KEY_MACRO# codes MUST also NOT be used as fallback for when no existing
-	 * KEY_FOO define matches the marking / purpose. In this case a new KEY_FOO
-	 * define MUST be added.
-	 */
+	// Some keyboards have keys which do not have a defined meaning, these keys
+	// are intended to be programmed / bound to macros by the user. For most
+	// keyboards with these macro-keys the key-sequence to inject, or action to
+	// take, is all handled by software on the host side. So from the kernel's
+	// point of view these are just normal keys.
+	//
+	// The KEY_MACRO# codes below are intended for such keys, which may be labeled
+	// e.g. G1-G18, or S1 - S30. The KEY_MACRO# codes MUST NOT be used for keys
+	// where the marking on the key does indicate a defined meaning / purpose.
+	//
+	// The KEY_MACRO# codes MUST also NOT be used as fallback for when no existing
+	// KEY_FOO define matches the marking / purpose. In this case a new KEY_FOO
+	// define MUST be added.
 	KeyMacro1  Key = C.KEY_MACRO1
 	KeyMacro2  Key = C.KEY_MACRO2
 	KeyMacro3  Key = C.KEY_MACRO3
@@ -771,16 +742,14 @@ const (
 	KeyMacro29 Key = C.KEY_MACRO29
 	KeyMacro30 Key = C.KEY_MACRO30
 
-	/*
-	 * Some keyboards with the macro-keys described above have some extra keys
-	 * for controlling the host-side software responsible for the macro handling:
-	 * -A macro recording start/stop key. Note that not all keyboards which emit
-	 *  KEY_MACRO_RECORD_START will also emit KEY_MACRO_RECORD_STOP if
-	 *  KEY_MACRO_RECORD_STOP is not advertised, then KEY_MACRO_RECORD_START
-	 *  should be interpreted as a recording start/stop toggle;
-	 * -Keys for switching between different macro (pre)sets, either a key for
-	 *  cycling through the configured presets or keys to directly select a preset.
-	 */
+	// Some keyboards with the macro-keys described above have some extra keys
+	// for controlling the host-side software responsible for the macro handling:
+	// -A macro recording start/stop key. Note that not all keyboards which emit
+	//  KEY_MACRO_RECORD_START will also emit KEY_MACRO_RECORD_STOP if
+	//  KEY_MACRO_RECORD_STOP is not advertised, then KEY_MACRO_RECORD_START
+	//  should be interpreted as a recording start/stop toggle;
+	// -Keys for switching between different macro (pre)sets, either a key for
+	//  cycling through the configured presets or keys to directly select a preset.
 	KeyMacroRecordStart Key = C.KEY_MACRO_RECORD_START
 	KeyMacroRecordStop  Key = C.KEY_MACRO_RECORD_STOP
 	KeyMacroPresetCycle Key = C.KEY_MACRO_PRESET_CYCLE
@@ -788,12 +757,10 @@ const (
 	KeyMacroPreset2     Key = C.KEY_MACRO_PRESET2
 	KeyMacroPreset3     Key = C.KEY_MACRO_PRESET3
 
-	/*
-	 * Some keyboards have a buildin LCD panel where the contents are controlled
-	 * by the host. Often these have a number of keys directly below the LCD
-	 * intended for controlling a menu shown on the LCD. These keys often don't
-	 * have any labeling so we just name them KEY_KBD_LCD_MENU#
-	 */
+	// Some keyboards have a buildin LCD panel where the contents are controlled
+	// by the host. Often these have a number of keys directly below the LCD
+	// intended for controlling a menu shown on the LCD. These keys often don't
+	// have any labeling so we just name them KEY_KBD_LCD_MENU#
 	KeyKbdLcdMenu1 Key = C.KEY_KBD_LCD_MENU1
 	KeyKbdLcdMenu2 Key = C.KEY_KBD_LCD_MENU2
 	KeyKbdLcdMenu3 Key = C.KEY_KBD_LCD_MENU3

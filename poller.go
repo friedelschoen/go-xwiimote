@@ -78,7 +78,7 @@ func (p *poller[T]) Wait(timeout time.Duration) (T, error) {
 
 func (p *poller[T]) drain(ch chan<- T) {
 	for {
-		ev, cont, err := p.drv.Poll()
+		ev, _, err := p.drv.Poll()
 		if errors.Is(err, ErrPollAgain) {
 			time.Sleep(10 * time.Millisecond)
 			continue
@@ -88,31 +88,26 @@ func (p *poller[T]) drain(ch chan<- T) {
 			continue
 		}
 		ch <- ev
-		if !cont {
-			continue
-		}
 	}
 }
 
 // Stream continuously polls and writes events into ch.
-// It blocks in a background goroutine until an error occurs or the poller stops.
+// It blocks forever and should be used in a new goroutine.
 func (p *poller[T]) Stream(ch chan<- T) {
-	go func() {
-		p.drain(ch)
-		for {
-			if p.fd == -1 {
-				p.fd = p.drv.FD()
-			}
-			if p.fd >= 0 {
-				fds := [...]unix.PollFd{{
-					Fd:     int32(p.fd),
-					Events: unix.POLLIN,
-				}}
-				unix.Poll(fds[:], -1)
-			} else {
-				time.Sleep(100 * time.Millisecond)
-			}
-			p.drain(ch)
+	p.drain(ch)
+	for {
+		if p.fd == -1 {
+			p.fd = p.drv.FD()
 		}
-	}()
+		if p.fd >= 0 {
+			fds := [...]unix.PollFd{{
+				Fd:     int32(p.fd),
+				Events: unix.POLLIN,
+			}}
+			unix.Poll(fds[:], -1)
+		} else {
+			time.Sleep(100 * time.Millisecond)
+		}
+		p.drain(ch)
+	}
 }

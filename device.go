@@ -75,8 +75,6 @@ type Device struct {
 // retrieved via a Monitor, an Enumerator or via udev directly. It must point to
 // the hid device, which is normally /sys/bus/hid/devices/[dev].
 //
-// You can use Poller[T] over a Device to efficiently wait for events.
-//
 // The object and underlying structure is freed automatically by default.
 func NewDevice(syspath string) (*Device, error) {
 	dev := new(Device)
