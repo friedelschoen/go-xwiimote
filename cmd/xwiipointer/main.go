@@ -31,7 +31,7 @@ func watchDevice(path string) {
 	bat, _ := dev.GetBattery()
 	fmt.Printf("new wiimote at %s with %d%% battery\n", dev.GetSyspath(), bat)
 
-	pointer := xwiimote.NewIRPointer()
+	pointer := xwiimote.NewIRPointer(nil)
 	var lastIR *xwiimote.EventIR
 	var lastAccel *xwiimote.EventAccel
 	for {
