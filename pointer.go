@@ -1,9 +1,7 @@
 package xwiimote
 
 import (
-	"log"
 	"math"
-	"slices"
 )
 
 /*
@@ -110,19 +108,24 @@ type IRPointer struct {
 
 	// Internal Health
 	Health   IRHealth
-	Distance float64 // Pixel width of the sensor bar
+	Distance float64 // Distance from wiimote to screen in centimeters
 	Smooth   *FVec2  // Smoothed coordinate
 
 	errorCount  float64 // Error count from smoothing algorithm
 	glitchCount float64 // Glitch count from smoothing algorithm
 }
 
+// IRHealth describes the current tracking of sensorbars
 type IRHealth uint
 
 const (
+	// The pointer is dead if it never had any signal yet
 	IRDead IRHealth = iota
+	// The pointer is lost if it had a signal which is now lost
 	IRLost
+	// The pointer can track one IR signal and must guess the position, a position is available but can be varying
 	IRSingle
+	// The pointer can track the whole sensorbar (two IR signals) and the position is good
 	IRGood
 )
 
@@ -144,25 +147,19 @@ const SbDotWidth = 2.25 // cm
 // SbDotHeight is half-height of emitters (with some tolerance)
 const SbDotHeight = 1.0 // cm
 
-const SbDotWidthRatio = SbDotWidth / SbWidth
-const SbDotHeightRatio = SbDotHeight / SbWidth
-
 // dots further out than these coords are allowed to not be picked up
 // otherwise assume something's wrong
+const SbOffScreenX = 0.0
+const SbOffScreenY = 0.0
+
 //const SB_OFF_SCREEN_X =  0.8f
 //const SB_OFF_SCREEN_Y =  (0.8f * HEIGHT)
 // disable, may be doing more harm than good due to sensor pickup glitches
-
-const SbOffScreenX = 0.0
-const SbOffScreenY = 0.0
 
 // SbSingleNoGuessDistance is a point and if it's closer to one of the previous SB points
 // when it reappears, consider it the same instead of trying to guess
 // which one of the two it is
 const SbSingleNoGuessDistance = (100.0 * 100.0)
-
-// SbZCoefficient is width of the sensor bar at one meter from the Wiimote
-const SbZCoefficient = 256.0 // pixels
 
 // WiimoteFOVCoefficient is distance from the center of the FOV to the left or right edge,
 // when the wiimote is at one meter
@@ -183,11 +180,9 @@ const GlitchMaxCount = 5
 // GlitchDistance is squared delta over which we consider something a glitch
 const GlitchDistance = (150.0 * 150.0)
 
-// Debug sets if debug messages should be printed
-const Debug = false
-
 // rotates dots in `in` into `out`, `out` is expected to be at least as big as `in`
 func rotateDots(out []FVec2, in []FVec2, theta float64) {
+	// theta=0 doesn't do anything
 	if theta == 0 {
 		copy(out, in)
 		return
@@ -206,12 +201,6 @@ func square(f float64) float64 {
 	return f * f
 }
 
-func printDebug(format string, values ...any) {
-	if Debug {
-		log.Printf(format, values...)
-	}
-}
-
 func NewIRPointer() *IRPointer {
 	ir := &IRPointer{}
 	ir.errorCount = ErrorMaxCount
@@ -226,14 +215,9 @@ func findDots(slots [4]IRSlot) (dots []FVec2) {
 			var dot FVec2
 			dot.X = -(float64(slot.X) - 512.0) / 512.0
 			dot.Y = (float64(slot.Y) - 384.0) / 512.0
-			printDebug("IR: dot %d at (%d,%d) (%.03f,%.03f)\n",
-				len(dots), slot.X, slot.Y,
-				dot.X, dot.Y)
 			dots = append(dots, dot)
 		}
 	}
-
-	printDebug("IR: found %d dots\n", len(dots))
 	return
 }
 
@@ -242,12 +226,9 @@ func findCanditates(dots, accDots []FVec2, roll float64) (candidates []SensorBar
 		return nil
 	}
 
-	printDebug("IR: locating sensor bar candidates\n")
-
 	// iterate through all dot pairs
 	for first := 0; first < (len(dots) - 1); first++ {
 		for second := (first + 1); second < len(dots); second++ {
-			printDebug("IR: trying dots %d and %d\n", first, second)
 			// order the dots leftmost first into cand
 			// storing both the raw dots and the accel-rotated dots
 			var cand SensorBar
@@ -271,13 +252,10 @@ func findCanditates(dots, accDots []FVec2, roll float64) (candidates []SensorBar
 			if math.Abs(difference.Y/difference.X) > MaxSbSlope {
 				continue
 			}
-			printDebug("IR: passed angle check\n")
 			// rotate to the true sensor bar angle
 			cand.offAngle = -math.Atan2(difference.Y, difference.X)
 			cand.Angle = cand.offAngle + roll
 			rotateDots(cand.rotDots[:], cand.dots[:], cand.Angle)
-			printDebug("IR: off_angle: %.02f, angle: %.02f\n",
-				cand.offAngle, cand.Angle)
 			// recalculate x distance - y should be zero now, so ignore it
 			difference.X = cand.rotDots[1].X - cand.rotDots[0].X
 
@@ -294,8 +272,8 @@ func findCanditates(dots, accDots []FVec2, roll float64) (candidates []SensorBar
 				if i == first || i == second {
 					continue
 				}
-				hadj = SbDotHeightRatio * difference.X
-				wadj = SbDotWidthRatio * difference.X
+				hadj = SbDotHeight / SbWidth * difference.X
+				wadj = SbDotWidth / SbWidth * difference.X
 				var tdot [1]FVec2
 				rotateDots(tdot[:], dots[i:i+1], cand.Angle)
 				if ((cand.rotDots[0].X + wadj) < tdot[0].X) &&
@@ -310,12 +288,9 @@ func findCanditates(dots, accDots []FVec2, roll float64) (candidates []SensorBar
 			if !isBar {
 				continue
 			}
-			printDebug("IR: passed middle dot check\n")
-
 			cand.score = 1 / (cand.rotDots[1].X - cand.rotDots[0].X)
 
 			// we have a candidate, store it
-			printDebug("IR: new candidate %d\n", len(candidates))
 			candidates = append(candidates, cand)
 		}
 	}
@@ -330,22 +305,15 @@ func (ir *IRPointer) guessSingle(dots, accDots []FVec2, roll float64) (sb Sensor
 	var dx [2]float64
 	var sbx [2]SensorBar
 	// no sensor bar candidates, try to work with a lone dot
-	printDebug("IR: no candidates\n")
 	switch ir.Health {
 	case IRDead:
-		printDebug("IR: we're dead\n")
 		// we've never seen a sensor bar before, so we're screwed
 		return sb, false
 	case IRGood, IRSingle, IRLost:
-		printDebug("IR: trying to keep track of single dot\n")
 		// try to find the dot closest to the previous sensor bar
 		// position
 		for i, accDot := range accDots {
-			printDebug("IR: checking dot %d (%.02f, %.02f)\n",
-				i, accDot.X, accDot.Y)
-			for j, saccDot := range ir.SensorBar.accDots {
-				printDebug("      to dot %d (%.02f, %.02f)\n",
-					j, saccDot.X, saccDot.Y)
+			for j, saccDot := range ir.accDots {
 				d = square(accDot.X - saccDot.X)
 				d += square(accDot.Y - saccDot.Y)
 				if d < best {
@@ -355,18 +323,16 @@ func (ir *IRPointer) guessSingle(dots, accDots []FVec2, roll float64) (sb Sensor
 				}
 			}
 		}
-		printDebug("IR: closest dot is %d to %d\n",
-			closest, closestTo)
 		if ir.Health != IRLost ||
 			best < SbSingleNoGuessDistance {
 			// now work out where the other dot would be, in the acc
 			// frame
 			sb.accDots[closestTo] = accDots[closest]
-			sb.accDots[closestTo^1].X = (ir.SensorBar.accDots[closestTo^1].X -
-				ir.SensorBar.accDots[closestTo].X +
+			sb.accDots[closestTo^1].X = (ir.accDots[closestTo^1].X -
+				ir.accDots[closestTo].X +
 				accDots[closest].X)
-			sb.accDots[closestTo^1].Y = (ir.SensorBar.accDots[closestTo^1].Y -
-				ir.SensorBar.accDots[closestTo].Y +
+			sb.accDots[closestTo^1].Y = (ir.accDots[closestTo^1].Y -
+				ir.accDots[closestTo].Y +
 				accDots[closest].Y)
 			// get the raw frame
 			rotateDots(sb.dots[:], sb.accDots[:], -roll)
@@ -375,22 +341,17 @@ func (ir *IRPointer) guessSingle(dots, accDots []FVec2, roll float64) (sb Sensor
 				// this dot should be visible but isn't, since the
 				// candidate section failed. fall through and try to
 				// pick out the sensor bar without previous information
-				printDebug("IR: dot falls on screen, falling through\n")
 			} else {
 				// calculate the rotated dots frame
 				// angle tends to drift, so recalculate
 				sb.offAngle = -math.Atan2(sb.accDots[1].Y-sb.accDots[0].Y,
 					sb.accDots[1].X-sb.accDots[0].X)
-				sb.Angle = ir.SensorBar.offAngle + roll
-				rotateDots(sb.rotDots[:], sb.accDots[:], ir.SensorBar.offAngle)
-				printDebug("IR: kept track of single dot\n")
+				sb.Angle = ir.offAngle + roll
+				rotateDots(sb.rotDots[:], sb.accDots[:], ir.offAngle)
 				break
 			}
-		} else {
-			printDebug("IR: lost the dot and new one is too far away\n")
 		}
 		// try to find the dot closest to the sensor edge
-		printDebug("IR: trying to find best dot\n")
 		for i, dot := range dots {
 			d = min(1.0-math.Abs(dot.X), Height-math.Abs(dot.Y))
 			if d < best {
@@ -398,35 +359,29 @@ func (ir *IRPointer) guessSingle(dots, accDots []FVec2, roll float64) (sb Sensor
 				closest = i
 			}
 		}
-		printDebug("IR: best dot: %d\n", closest)
 		// now try it as both places in the sensor bar
 		// and pick the one that places the other dot furthest off-screen
 		for i := range 2 {
 			sbx[i].accDots[i] = accDots[closest]
-			sbx[i].accDots[i^1].X = ir.SensorBar.accDots[i^1].X -
-				ir.SensorBar.accDots[i].X +
+			sbx[i].accDots[i^1].X = ir.accDots[i^1].X -
+				ir.accDots[i].X +
 				accDots[closest].X
-			sbx[i].accDots[i^1].Y = ir.SensorBar.accDots[i^1].Y -
-				ir.SensorBar.accDots[i].Y +
+			sbx[i].accDots[i^1].Y = ir.accDots[i^1].Y -
+				ir.accDots[i].Y +
 				accDots[closest].Y
 			rotateDots(sbx[i].dots[:], sbx[i].accDots[:], -roll)
 			dx[i] = max(math.Abs(sbx[i].dots[i^1].X), math.Abs(sbx[i].dots[i^1].Y/Height))
 		}
 		if dx[0] > dx[1] {
-			printDebug("IR: dot is LEFT: %.02f > %.02f\n",
-				dx[0], dx[1])
 			sb = sbx[0]
 		} else {
-			printDebug("IR: dot is RIGHT: %.02f < %.02f\n",
-				dx[0], dx[1])
 			sb = sbx[1]
 		}
 		// angle tends to drift, so recalculate
 		sb.offAngle = -(math.Atan2(sb.accDots[1].Y-sb.accDots[0].Y,
 			sb.accDots[1].X-sb.accDots[0].X))
-		sb.Angle = ir.SensorBar.offAngle + roll
-		rotateDots(sb.rotDots[:], sb.accDots[:], ir.SensorBar.offAngle)
-		printDebug("IR: found new dot to track\n")
+		sb.Angle = ir.offAngle + roll
+		rotateDots(sb.rotDots[:], sb.accDots[:], ir.offAngle)
 	}
 	sb.score = 0
 	return sb, true
@@ -435,8 +390,6 @@ func (ir *IRPointer) guessSingle(dots, accDots []FVec2, roll float64) (sb Sensor
 // raw      *FVec2  // Raw coordinate (-512..512, 0 is center)
 // distance float64 // Pixel width of the sensor bar
 func (ir *IRPointer) updateSensorbar(slots [4]IRSlot, roll float64) (raw FVec2, distance float64, ok bool) {
-	printDebug("IR: angle: %.05f\n", roll)
-
 	dots := findDots(slots)
 
 	// nothing to track
@@ -453,93 +406,98 @@ func (ir *IRPointer) updateSensorbar(slots [4]IRSlot, roll float64) (raw FVec2, 
 	rotateDots(accDots, dots, roll)
 
 	candidates := findCanditates(dots, accDots, roll)
-
-	var sb SensorBar
-	if len(candidates) == 0 {
+	switch len(candidates) {
+	case 0:
+		var sb SensorBar
 		sb, ok = ir.guessSingle(dots, accDots, roll)
 		if !ok {
 			return
 		}
+		ir.SensorBar = sb
 		ir.Health = IRSingle
-	} else {
-		printDebug("IR: finding best candidate\n")
-		sb = slices.MaxFunc(candidates, func(left, right SensorBar) int {
-			return int(right.score - left.score)
-		})
+	case 1:
+		ir.SensorBar = candidates[0]
+		ir.Health = IRGood
+	case 2:
+		ir.SensorBar = candidates[0]
+		/* search for best candidate */
+		for i := 1; i < len(candidates); i++ {
+			if candidates[i].score > ir.score {
+				ir.SensorBar = candidates[i]
+			}
+		}
 		ir.Health = IRGood
 	}
 
-	ir.SensorBar = sb
-
 	raw = FVec2{
-		X: ((sb.rotDots[0].X + sb.rotDots[1].X) / 2) * 512.0,
-		Y: ((sb.rotDots[0].Y + sb.rotDots[1].Y) / 2) * 512.0,
+		X: (ir.rotDots[0].X + ir.rotDots[1].X) / 2 * 512.0,
+		Y: (ir.rotDots[0].Y + ir.rotDots[1].Y) / 2 * 512.0,
 	}
-	distance = (sb.rotDots[1].X - sb.rotDots[0].X) * 512.0
+	distance = 50 / (ir.rotDots[1].X - ir.rotDots[0].X)
 	ok = true
 	return
 }
 
 func (ir *IRPointer) applySmoothing(raw FVec2) {
-	printDebug("Smooth: OK (%.02f, %.02f) LAST (%.02f, %.02f) ",
-		raw.X, raw.Y, ir.Smooth.X, ir.Smooth.Y)
 	dx := raw.X - ir.Smooth.X
 	dy := raw.Y - ir.Smooth.Y
 	d := math.Sqrt(square(dx) + square(dy))
 	if d <= SmootherDeadzone {
-		printDebug("DEADZONE\n")
 		return
 	}
 	if d < SmootherRadius {
-		printDebug("INSIDE\n")
 		ir.Smooth.X += dx * SmootherSpeed
 		ir.Smooth.Y += dy * SmootherSpeed
 	} else {
-		printDebug("OUTSIDE\n")
 		theta := math.Atan2(dy, dx)
 		ir.Smooth.X = raw.X - math.Cos(theta)*SmootherRadius
 		ir.Smooth.Y = raw.Y - math.Sin(theta)*SmootherRadius
 	}
 }
 
-// Update processes new dots and roll values
+// Update processes new dots and acceleration values
+//
+// If acceleration data is unreliable (wiimote is significantly
+// accelerating) then you should supply the last known good value.
+func (ir *IRPointer) Update(slots [4]IRSlot, accel Vec3) {
+	roll := math.Atan2(float64(accel.X), float64(accel.Y))
+	ir.UpdateRoll(slots, roll)
+}
+
+// UpdateRoll processes new dots and roll values
 //
 // You can calculate the roll from the accel as roll=atan2(x, z). If roll
 // data is unreliable (wiimote is significantly accelerating) then you should
 // supply the last known good value.
-func (ir *IRPointer) Update(slots [4]IRSlot, roll float64) {
+func (ir *IRPointer) UpdateRoll(slots [4]IRSlot, roll float64) {
 	raw, distance, ok := ir.updateSensorbar(slots, roll)
 
-	if ok {
-		ir.Distance = distance
-		if ir.errorCount >= ErrorMaxCount {
-			ir.Smooth = &raw
-			ir.glitchCount = 0
-		} else {
-			d := square(raw.X-ir.Smooth.X) + square(raw.Y-ir.Smooth.Y)
-			if d > GlitchDistance {
-				if ir.glitchCount > GlitchMaxCount {
-					ir.applySmoothing(raw)
-					ir.glitchCount = 0
-				} else {
-					ir.glitchCount++
-				}
-			} else {
-				ir.applySmoothing(raw)
-				ir.glitchCount = 0
-			}
-		}
-		ir.errorCount = 0
-	} else {
+	if !ok {
 		if ir.errorCount >= ErrorMaxCount {
 			ir.Smooth = nil
 		} else {
 			ir.errorCount++
 		}
+		return
 	}
-}
 
-// WiimoteDistance returns distances between Wiimote to sensor bar in meters
-func (ir *IRPointer) WiimoteDistance() float64 {
-	return SbZCoefficient / ir.Distance
+	ir.Distance = distance
+	if ir.errorCount >= ErrorMaxCount {
+		ir.Smooth = &raw
+		ir.glitchCount = 0
+	} else {
+		d := square(raw.X-ir.Smooth.X) + square(raw.Y-ir.Smooth.Y)
+		if d > GlitchDistance {
+			if ir.glitchCount > GlitchMaxCount {
+				ir.applySmoothing(raw)
+				ir.glitchCount = 0
+			} else {
+				ir.glitchCount++
+			}
+		} else {
+			ir.applySmoothing(raw)
+			ir.glitchCount = 0
+		}
+	}
+	ir.errorCount = 0
 }

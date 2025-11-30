@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"math"
 
 	"github.com/friedelschoen/go-xwiimote"
 	"github.com/friedelschoen/go-xwiimote/pkg/virtdev"
@@ -75,15 +74,14 @@ func watchDevice(path string) {
 			}
 		}
 		if lastIR != nil && lastAccel != nil {
-			roll := math.Atan2(float64(lastAccel.Accel.X), float64(lastAccel.Accel.Z))
-			pointer.Update(lastIR.Slots, roll)
+			pointer.Update(lastIR.Slots, lastAccel.Accel)
 			lastIR = nil
 			lastAccel = nil
 		}
 		if pointer.Health >= xwiimote.IRGood && pointer.Smooth != nil {
 			x, y := pointer.Smooth.X, pointer.Smooth.Y
 			if x >= -340 && x < 340 && y >= -92 && y < 290 {
-				fmt.Printf("[%v] pointer at (%.2f %.2f) at %.2fm distance\n", pointer.Health, pointer.Smooth.X, pointer.Smooth.Y, pointer.WiimoteDistance())
+				fmt.Printf("[%v] pointer at (%.2f %.2f) at %.2fm distance\n", pointer.Health, pointer.Smooth.X, pointer.Smooth.Y, pointer.Distance)
 				err := mouse.Set(int32(x), int32(y))
 				fmt.Println(err)
 			}
