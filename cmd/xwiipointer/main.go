@@ -6,13 +6,13 @@ import (
 	"log"
 
 	"github.com/friedelschoen/go-xwiimote"
-	"github.com/friedelschoen/go-xwiimote/pkg/virtdev"
+	"github.com/friedelschoen/go-xwiimote/pkg/vinput"
 )
 
 func watchDevice(path string) {
-	mouse, err := virtdev.CreateMouse("xwiimote-mouse",
-		virtdev.Range{Min: -340, Max: 340, Res: 72},
-		virtdev.Range{Min: -92, Max: 290, Res: 72})
+	mouse, err := vinput.CreateMouse("xwiimote-mouse",
+		vinput.Range{Min: -340, Max: 340, Res: 72},
+		vinput.Range{Min: -92, Max: 290, Res: 72})
 	if err != nil {
 		log.Fatalf("error: unable to create mouse: %v", err)
 	}
@@ -50,11 +50,11 @@ func watchDevice(path string) {
 			}
 			switch ev.Code {
 			case xwiimote.KeyA:
-				mouse.Key(virtdev.ButtonLeft, ev.State != xwiimote.StateReleased)
+				mouse.Key(vinput.ButtonLeft, ev.State != xwiimote.StateReleased)
 			case xwiimote.KeyB:
-				mouse.Key(virtdev.ButtonRight, ev.State != xwiimote.StateReleased)
+				mouse.Key(vinput.ButtonRight, ev.State != xwiimote.StateReleased)
 			case xwiimote.KeyHome:
-				mouse.Key(virtdev.ButtonMiddle, ev.State != xwiimote.StateReleased)
+				mouse.Key(vinput.ButtonMiddle, ev.State != xwiimote.StateReleased)
 			case xwiimote.KeyUp:
 				if ev.State == xwiimote.StatePressed {
 					mouse.Scroll(false, -10)

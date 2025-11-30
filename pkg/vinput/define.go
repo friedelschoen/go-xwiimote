@@ -1,4 +1,4 @@
-package virtdev
+package vinput
 
 // #include <linux/uinput.h>
 // #define SYSNAME_LEN 64

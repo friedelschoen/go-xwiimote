@@ -1,4 +1,4 @@
-package virtdev
+package vinput
 
 import (
 	"fmt"

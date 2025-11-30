@@ -1,5 +1,5 @@
-// Package virtdev can create a Virtual Input using uinput
-package virtdev
+// Package vinput can create a Virtual Input using uinput
+package vinput
 
 import (
 	"bytes"
