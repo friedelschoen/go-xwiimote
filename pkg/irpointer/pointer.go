@@ -1,4 +1,5 @@
-package xwiimote
+// Package irpointer contains an algorithm to use your wiimote IR-sensors as pointer on a screen
+package irpointer
 
 // Algorithm to process Wiimote IR tracking data into a usable pointer position
 // by tracking the sensor bar. Made by "marcan" at
@@ -30,8 +31,12 @@ package xwiimote
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
+//go:generate stringer -type IRHealth -output stringer.go
+
 import (
 	"math"
+
+	"github.com/friedelschoen/go-xwiimote"
 )
 
 // FVec2 represents a 2D floating point vector to X and Y.
@@ -250,7 +255,7 @@ func NewIRPointer(params *IRParams) *IRPointer {
 	return ir
 }
 
-func findDots(slots [4]IRSlot) (dots []FVec2) {
+func findDots(slots [4]xwiimote.IRSlot) (dots []FVec2) {
 	// count visible dots and populate dots structure
 	// dots[] is in -1..1 units for width
 	for _, slot := range slots {
@@ -432,7 +437,7 @@ func (ir *IRPointer) guessSingle(dots, accDots []FVec2, roll float64) (sb Sensor
 
 // raw      *FVec2  // Raw coordinate (-512..512, 0 is center)
 // distance float64 // Pixel width of the sensor bar
-func (ir *IRPointer) updateSensorbar(slots [4]IRSlot, roll float64) (raw FVec2, distance float64, ok bool) {
+func (ir *IRPointer) updateSensorbar(slots [4]xwiimote.IRSlot, roll float64) (raw FVec2, distance float64, ok bool) {
 	dots := findDots(slots)
 
 	// nothing to track
@@ -502,7 +507,7 @@ func (ir *IRPointer) applySmoothing(raw FVec2) {
 //
 // If acceleration data is unreliable (wiimote is significantly
 // accelerating) then you should supply the last known good value.
-func (ir *IRPointer) Update(slots [4]IRSlot, accel Vec3) {
+func (ir *IRPointer) Update(slots [4]xwiimote.IRSlot, accel xwiimote.Vec3) {
 	roll := math.Atan2(float64(accel.X), float64(accel.Y))
 	ir.UpdateRoll(slots, roll)
 }
@@ -512,7 +517,7 @@ func (ir *IRPointer) Update(slots [4]IRSlot, accel Vec3) {
 // You can calculate the roll from the accel as roll=atan2(x, z). If roll
 // data is unreliable (wiimote is significantly accelerating) then you should
 // supply the last known good value.
-func (ir *IRPointer) UpdateRoll(slots [4]IRSlot, roll float64) {
+func (ir *IRPointer) UpdateRoll(slots [4]xwiimote.IRSlot, roll float64) {
 	raw, distance, ok := ir.updateSensorbar(slots, roll)
 
 	if !ok {

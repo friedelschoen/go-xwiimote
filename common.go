@@ -1,5 +1,7 @@
 package xwiimote
 
+//go:generate stringer -type InterfaceType,Led,Key,KeyState,MonitorType,EventType -output stringer.go
+
 // #include <string.h>
 // #include <stdlib.h>
 import "C"
@@ -8,8 +10,6 @@ import (
 	"time"
 	"unsafe"
 )
-
-//go:generate stringer -type InterfaceType,Led,Key,KeyState,MonitorType,EventType,IRHealth -output stringer.go
 
 // cError takes an integer error code.
 //

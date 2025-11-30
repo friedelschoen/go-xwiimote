@@ -6,6 +6,7 @@ import (
 	"log"
 
 	"github.com/friedelschoen/go-xwiimote"
+	"github.com/friedelschoen/go-xwiimote/pkg/irpointer"
 	"github.com/friedelschoen/go-xwiimote/pkg/vinput"
 )
 
@@ -31,7 +32,7 @@ func watchDevice(path string) {
 	bat, _ := dev.GetBattery()
 	fmt.Printf("new wiimote at %s with %d%% battery\n", dev.GetSyspath(), bat)
 
-	pointer := xwiimote.NewIRPointer(nil)
+	pointer := irpointer.NewIRPointer(nil)
 	var lastIR *xwiimote.EventIR
 	var lastAccel *xwiimote.EventAccel
 	for {
@@ -78,7 +79,7 @@ func watchDevice(path string) {
 			lastIR = nil
 			lastAccel = nil
 		}
-		if pointer.Health >= xwiimote.IRGood && pointer.Position != nil {
+		if pointer.Health >= irpointer.IRGood && pointer.Position != nil {
 			x, y := pointer.Position.X, pointer.Position.Y
 			if x >= -340 && x < 340 && y >= -92 && y < 290 {
 				fmt.Printf("[%v] pointer at (%.2f %.2f) at %.2fm distance\n", pointer.Health, pointer.Position.X, pointer.Position.Y, pointer.Distance)

@@ -1,5 +1,7 @@
 package vinput
 
+//go:generate stringer -type Key -output stringer.go
+
 // #include <linux/uinput.h>
 // #define SYSNAME_LEN 64
 // #define GET_SYSNAME UI_GET_SYSNAME(SYSNAME_LEN)
