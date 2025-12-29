@@ -76,7 +76,7 @@ func (p *poller[T]) Wait(timeout time.Duration) (T, error) {
 	}
 }
 
-func (p *poller[T]) drain(ch chan<- T) {
+func (p *poller[T]) drain(yield func(T)) {
 	for {
 		ev, _, err := p.drv.Poll()
 		if errors.Is(err, ErrPollAgain) {
@@ -87,14 +87,14 @@ func (p *poller[T]) drain(ch chan<- T) {
 			log.Printf("error while polling for event: %v", err)
 			continue
 		}
-		ch <- ev
+		yield(ev)
 	}
 }
 
-// Stream continuously polls and writes events into ch.
+// Handle continuously polls and calls `yield` with new events.
 // It blocks forever and should be used in a new goroutine.
-func (p *poller[T]) Stream(ch chan<- T) {
-	p.drain(ch)
+func (p *poller[T]) Handle(yield func(T)) {
+	p.drain(yield)
 	for {
 		if p.fd == -1 {
 			p.fd = p.drv.FD()
@@ -108,6 +108,16 @@ func (p *poller[T]) Stream(ch chan<- T) {
 		} else {
 			time.Sleep(100 * time.Millisecond)
 		}
-		p.drain(ch)
+		p.drain(yield)
 	}
+}
+
+// Stream continuously polls and writes events into ch. It is a wrapper for Handle.
+// It blocks forever and should be used in a new goroutine.
+//
+//	p.Handle(func(ev T) { ch <- ev })
+func (p *poller[T]) Stream(ch chan<- T) {
+	p.Handle(func(ev T) {
+		ch <- ev
+	})
 }
