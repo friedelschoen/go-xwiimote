@@ -26,6 +26,13 @@ func cError(ret C.int) error {
 	return syscall.Errno(ret)
 }
 
+func cTimeMake(orig time.Time) C.struct_timeval {
+	var t C.struct_timeval
+	t.tv_sec = C.time_t(orig.Unix())
+	t.tv_usec = C.time_t(orig.UnixMicro() / 1_000_000)
+	return t
+}
+
 // cTime takes an C timeval and converts it to time.Time
 func cTime(t C.struct_timeval) time.Time {
 	return time.Unix(int64(t.tv_sec), int64(t.tv_usec))

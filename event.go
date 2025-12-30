@@ -115,10 +115,10 @@ const (
 	StateRepeated
 )
 
-// Vec2 represents a 2D point or vector to X and Y, may be interpreted otherwise depending on the event .
+// Vec2 represents a 2D point or vector to X and Y, may be interpreted different depending on the event .
 type Vec2 struct{ X, Y int32 }
 
-// Vec3 represents a 3D point or vector to X, Y and Z, may be interpreted otherwise depending on the event.
+// Vec3 represents a 3D point or vector to X, Y and Z, may be interpreted different depending on the event.
 type Vec3 struct{ X, Y, Z int32 }
 
 // EventType describes the type of event as an integer.
