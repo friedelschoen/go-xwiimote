@@ -1,8 +1,6 @@
 // Package xwiimote has bindings for libxwiimote, a library to read and control inputs on a Nintendo WiiMote and accessories.
 package xwiimote
 
-// #cgo pkg-config: libxwiimote
-// #include <xwiimote.h>
 // #include <linux/input.h>
 // #include <errno.h>
 //
@@ -169,7 +167,7 @@ type Device struct {
 	/* epoll file descriptor */
 	efd int
 	/* udev context */
-	udev udev.Udev
+	udev *udev.Udev
 	/* main udev device */
 	dev *udev.Device
 	/* udev monitor */
@@ -223,41 +221,46 @@ type Device struct {
 //
 // The object and underlying structure is freed automatically by default.
 func NewDevice(syspath string) (*Device, error) {
-	d := new(Device)
-	d.poller = newPoller(d)
 
 	// const char *driver, *subs;
 	// int ret, i;
-
-	if syspath == "" {
+	var udev udev.Udev
+	dev := udev.NewDeviceFromSyspath(syspath)
+	if dev == nil {
 		return nil, os.ErrInvalid
 	}
 
+	return newDeviceWithUdev(&udev, dev)
+}
+
+func newDeviceWithUdev(udev *udev.Udev, dev *udev.Device) (*Device, error) {
+	var d Device
+	d.udev = udev
+	d.poller = newPoller(&d)
+	d.dev = dev
+
 	d.rumble_id = -1
+
+	driver := d.dev.Driver()
+	subs := d.dev.Subsystem()
+	if driver != "wiimote" || subs != "hid" {
+		return nil, ErrInvalidDevice
+	}
+	syspath := dev.Syspath()
+	d.devtype_attr = path.Join(syspath, "devtype")
+	d.extension_attr = path.Join(syspath, "extension")
 
 	var err error
 	d.efd, err = syscall.EpollCreate1(syscall.EPOLL_CLOEXEC)
 	if err != nil {
 		return nil, err
 	}
-
-	d.dev = d.udev.NewDeviceFromSyspath(syspath)
-
-	driver := d.dev.Driver()
-	subs := d.dev.Subsystem()
-	if driver != "wiimote" || subs != "hid" {
-		syscall.Close(d.efd)
-		return nil, ErrInvalidDevice
-	}
-	d.devtype_attr = path.Join(syspath, "devtype")
-	d.extension_attr = path.Join(syspath, "extension")
-
 	if err := d.readNodes(); err != nil {
 		syscall.Close(d.efd)
 		return nil, err
 	}
 
-	return d, nil
+	return &d, nil
 }
 
 /*

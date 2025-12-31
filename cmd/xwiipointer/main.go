@@ -10,7 +10,7 @@ import (
 	"github.com/friedelschoen/go-xwiimote/pkg/vinput"
 )
 
-func watchDevice(path string) {
+func watchDevice(dev *xwiimote.Device) {
 	mouse, err := vinput.CreateMouse("xwiimote-mouse",
 		vinput.Range{Min: -340, Max: 340, Res: 72},
 		vinput.Range{Min: -92, Max: 290, Res: 72})
@@ -18,12 +18,6 @@ func watchDevice(path string) {
 		log.Fatalf("error: unable to create mouse: %v", err)
 	}
 	defer mouse.Close()
-
-	dev, err := xwiimote.NewDevice(path)
-	if err != nil {
-		log.Fatalf("error: unable to get device: %v", err)
-	}
-	defer dev.Free()
 
 	if err := dev.Open(xwiimote.InterfaceCore | xwiimote.InterfaceIR | xwiimote.InterfaceAccel); err != nil {
 		log.Fatalf("error: unable to open device: %v", err)
@@ -93,15 +87,17 @@ func watchDevice(path string) {
 func main() {
 	flag.Parse()
 
-	monitor := xwiimote.NewMonitor(xwiimote.MonitorUdev)
-	defer monitor.Free()
+	monitor, err := xwiimote.NewMonitor(xwiimote.MonitorUdev)
+	if err != nil {
+		log.Fatalln("error: ", err)
+	}
 
 	for {
-		path, err := monitor.Wait(-1)
-		if err != nil || path == "" {
+		dev, err := monitor.Wait(-1)
+		if err != nil || dev == nil {
 			log.Printf("error while polling: %v\n", err)
 			continue
 		}
-		watchDevice(path)
+		watchDevice(dev)
 	}
 }

@@ -1,6 +1,3 @@
-//go:build linux && cgo
-// +build linux,cgo
-
 package udev
 
 /*
@@ -29,7 +26,6 @@ func enumerateName(locker interface {
 		var l *C.struct_udev_list_entry
 		for {
 			locker.lock()
-			defer locker.unlock()
 			if l == nil {
 				l = init()
 			} else {
@@ -38,7 +34,10 @@ func enumerateName(locker interface {
 					return
 				}
 			}
-			if !yield(C.GoString(C.udev_list_entry_get_name(l))) {
+			item := C.GoString(C.udev_list_entry_get_name(l))
+			locker.unlock()
+
+			if !yield(item) {
 				return
 			}
 		}

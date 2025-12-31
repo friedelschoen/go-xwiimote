@@ -1,10 +1,11 @@
 package xwiimote
 
-// #cgo pkg-config: libxwiimote
-// #include <xwiimote.h>
-import "C"
 import (
-	"runtime"
+	"iter"
+	"os"
+	"syscall"
+
+	"github.com/friedelschoen/go-xwiimote/pkg/udev"
 )
 
 // MonitorType describes how a monitor or enumerator should look for devices.
@@ -17,13 +18,25 @@ const (
 	MonitorUdev MonitorType = 0
 )
 
+func (t MonitorType) Name() string {
+	switch t {
+	case MonitorKernel:
+		return "kernel"
+	default:
+		return "udev"
+	}
+}
+
 // Monitor describes a monitor for xwiimote-devices. This includes currently available
 // but also hot-plugged devices.
 //
 // Monitors are not thread-safe.
 type Monitor struct {
-	poller[string]
-	cptr *C.struct_xwii_monitor
+	udev udev.Udev
+	poller[*Device]
+	monitor *udev.Monitor
+	next    func() (*Device, error, bool)
+	stop    func()
 }
 
 // NewMonitor creates a new monitor.
@@ -32,34 +45,36 @@ type Monitor struct {
 // and hot-plugged devices.
 //
 // The object and underlying structure is freed automatically by default.
-func NewMonitor(typ MonitorType) *Monitor {
-	mon := new(Monitor)
-	mon.poller = newPoller(mon)
-	mon.cptr = C.xwii_monitor_new(true, C.bool(typ != 0))
+func NewMonitor(typ MonitorType) (*Monitor, error) {
+	var mon Monitor
+	mon.poller = newPoller(&mon)
 
-	runtime.SetFinalizer(mon, func(m *Monitor) {
-		m.Free()
-	})
-	return mon
-}
-
-// Free unreferences the monitor and frees the underlying structure.
-// Calling Free is not mandatory and is done automatically by default.
-func (mon *Monitor) Free() {
-	if mon.cptr == nil {
-		return
+	devs, err := iterDevicesWithUdev(&mon.udev)
+	if err != nil {
+		return nil, err
 	}
-	runtime.SetFinalizer(mon, nil)
-	C.xwii_monitor_unref(mon.cptr)
-	mon.cptr = nil
+	mon.next, mon.stop = iter.Pull2(devs)
+
+	mon.monitor = mon.udev.NewMonitorFromNetlink(typ.Name())
+	if mon.monitor == nil {
+		return nil, os.ErrInvalid
+	}
+	if err := mon.monitor.FilterAddMatchSubsystemDevtype("hid", ""); err != nil {
+		return nil, err
+	}
+	if err := mon.monitor.EnableReceiving(); err != nil {
+		return nil, err
+	}
+	return &mon, nil
 }
 
 // FD returns the file-descriptor to notify readiness. The FD is non-blocking.
 // Only one file-descriptor exists, that is, this function always returns the
 // same descriptor.
 func (mon *Monitor) FD() int {
-	ret := C.xwii_monitor_get_fd(mon.cptr, false)
-	return int(ret)
+	fd := mon.monitor.GetFD()
+	syscall.SetNonblock(fd, false)
+	return fd
 }
 
 // Poll returns a single device-name on each call. A device-name is actually
@@ -73,10 +88,25 @@ func (mon *Monitor) FD() int {
 // if the monitor was opened to watch the system for hotplug events.
 //
 // Use FD() to get notified when a new event is available.
-func (mon *Monitor) Poll() (string, bool, error) {
-	path := C.xwii_monitor_poll(mon.cptr)
-	if path == nil {
-		return "", false, ErrPollAgain
+func (mon *Monitor) Poll() (*Device, bool, error) {
+	if mon.next != nil {
+		dev, err, ok := mon.next()
+		if ok {
+			return dev, true, err
+		}
+		/* ok == false -> iteration ended */
+		mon.stop()
+		mon.next = nil
+		mon.stop = nil
 	}
-	return cStringCopy(path), false, nil
+
+	dev := mon.monitor.ReceiveDevice()
+	if dev == nil {
+		return nil, false, nil
+	}
+	if dev.Action() != "add" || dev.Driver() != "wiimote" || dev.Subsystem() != "hid" {
+		return nil, true, os.ErrInvalid
+	}
+	iff, err := newDeviceWithUdev(&mon.udev, dev)
+	return iff, true, err
 }

@@ -318,13 +318,8 @@ func loadMapping(r io.Reader) map[xwiimote.Key]vinput.Key {
 	return mapping
 }
 
-func watchDevice(path string, mapping map[xwiimote.Key]vinput.Key) {
-	dev, err := xwiimote.NewDevice(path)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: unable to get device: %s", err)
-	}
-	defer dev.Free()
-
+func watchDevice(dev *xwiimote.Device, mapping map[xwiimote.Key]vinput.Key) {
+	fmt.Printf("new device: %s\n", dev.String())
 	if err := dev.Open(xwiimote.InterfaceCore); err != nil {
 		fmt.Fprintf(os.Stderr, "error: unable to open device: %s", err)
 	}
@@ -356,15 +351,17 @@ func main() {
 
 	mapping := loadMapping(os.Stdin)
 
-	monitor := xwiimote.NewMonitor(xwiimote.MonitorUdev)
-	defer monitor.Free()
+	monitor, err := xwiimote.NewMonitor(xwiimote.MonitorUdev)
+	if err != nil {
+		log.Fatalln("error: ", err)
+	}
 
 	for {
-		path, err := monitor.Wait(-1)
-		if err != nil || path == "" {
+		dev, err := monitor.Wait(-1)
+		if err != nil || dev == nil {
 			log.Printf("error while polling: %v\n", err)
 			continue
 		}
-		watchDevice(path, mapping)
+		watchDevice(dev, mapping)
 	}
 }
