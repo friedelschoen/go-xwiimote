@@ -1,6 +1,6 @@
 package xwiimote
 
-//go:generate stringer -type InterfaceType,Led,Key,KeyState,MonitorType,EventType -output stringer.go
+//go:generate stringer -type InterfaceType,Led,Key,KeyState,MonitorType -output stringer.go
 
 // #include <string.h>
 // #include <stdlib.h>

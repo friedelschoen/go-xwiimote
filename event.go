@@ -1,10 +1,84 @@
 package xwiimote
 
-// #cgo pkg-config: libxwiimote
-// #include <xwiimote.h>
+// #include <linux/input.h>
+//
+// #ifndef BTN_EAST
+// #define BTN_EAST 0x131
+// #endif
+// #ifndef BTN_SOUTH
+// #define BTN_SOUTH 0x130
+// #endif
+// #ifndef BTN_NORTH
+// #define BTN_NORTH 0x133
+// #endif
+// #ifndef BTN_WEST
+// #define BTN_WEST 0x134
+// #endif
+// #ifndef BTN_DPAD_LEFT
+// #define BTN_DPAD_LEFT 0x222
+// #endif
+// #ifndef BTN_DPAD_RIGHT
+// #define BTN_DPAD_RIGHT 0x223
+// #endif
+// #ifndef BTN_DPAD_UP
+// #define BTN_DPAD_UP 0x220
+// #endif
+// #ifndef BTN_DPAD_DOWN
+// #define BTN_DPAD_DOWN 0x221
+// #endif
+// #ifndef ABS_CYMBAL_LEFT
+// #define ABS_CYMBAL_LEFT 0x45
+// #endif
+// #ifndef ABS_CYMBAL_RIGHT
+// #define ABS_CYMBAL_RIGHT 0x46
+// #endif
+// #ifndef ABS_TOM_LEFT
+// #define ABS_TOM_LEFT 0x41
+// #endif
+// #ifndef ABS_TOM_RIGHT
+// #define ABS_TOM_RIGHT 0x42
+// #endif
+// #ifndef ABS_TOM_FAR_RIGHT
+// #define ABS_TOM_FAR_RIGHT 0x43
+// #endif
+// #ifndef ABS_BASS
+// #define ABS_BASS 0x48
+// #endif
+// #ifndef ABS_HI_HAT
+// #define ABS_HI_HAT 0x49
+// #endif
+// #ifndef BTN_FRET_FAR_UP
+// #define BTN_FRET_FAR_UP 0x224
+// #endif
+// #ifndef BTN_FRET_UP
+// #define BTN_FRET_UP 0x225
+// #endif
+// #ifndef BTN_FRET_MID
+// #define BTN_FRET_MID 0x226
+// #endif
+// #ifndef BTN_FRET_LOW
+// #define BTN_FRET_LOW 0x227
+// #endif
+// #ifndef BTN_FRET_FAR_LOW
+// #define BTN_FRET_FAR_LOW 0x228
+// #endif
+// #ifndef BTN_STRUM_BAR_UP
+// #define BTN_STRUM_BAR_UP 0x229
+// #endif
+// #ifndef BTN_STRUM_BAR_DOWN
+// #define BTN_STRUM_BAR_DOWN 0x22a
+// #endif
+// #ifndef ABS_WHAMMY_BAR
+// #define ABS_WHAMMY_BAR 0x4b
+// #endif
+// #ifndef ABS_FRET_BOARD
+// #define ABS_FRET_BOARD 0x4a
+// #endif
 import "C"
 import (
 	"fmt"
+	"io"
+	"os"
 	"time"
 	"unsafe"
 )
@@ -22,86 +96,86 @@ import (
 type Key uint
 
 const (
-	KeyLeft  Key = C.XWII_KEY_LEFT
-	KeyRight Key = C.XWII_KEY_RIGHT
-	KeyUp    Key = C.XWII_KEY_UP
-	KeyDown  Key = C.XWII_KEY_DOWN
-	KeyA     Key = C.XWII_KEY_A
-	KeyB     Key = C.XWII_KEY_B
-	KeyPlus  Key = C.XWII_KEY_PLUS
-	KeyMinus Key = C.XWII_KEY_MINUS
-	KeyHome  Key = C.XWII_KEY_HOME
-	KeyOne   Key = C.XWII_KEY_ONE
-	KeyTwo   Key = C.XWII_KEY_TWO
-	KeyX     Key = C.XWII_KEY_X
-	KeyY     Key = C.XWII_KEY_Y
-	KeyTL    Key = C.XWII_KEY_TL
-	KeyTR    Key = C.XWII_KEY_TR
-	KeyZL    Key = C.XWII_KEY_ZL
-	KeyZR    Key = C.XWII_KEY_ZR
+	KeyLeft Key = iota
+	KeyRight
+	KeyUp
+	KeyDown
+	KeyA
+	KeyB
+	KeyPlus
+	KeyMinus
+	KeyHome
+	KeyOne
+	KeyTwo
+	KeyX
+	KeyY
+	KeyTL
+	KeyTR
+	KeyZL
+	KeyZR
 
 	// Left thumb button
 	//
 	// This is reported if the left analog stick is pressed. Not all analog
 	// sticks support this. The Wii-U Pro Controller is one of few devices
 	// that report this event.
-	KeyThumbL Key = C.XWII_KEY_THUMBL
+	KeyThumbL
 
 	// Right thumb button
 	//
 	// This is reported if the right analog stick is pressed. Not all analog
 	// sticks support this. The Wii-U Pro Controller is one of few devices
 	// that report this event.
-	KeyThumbR Key = C.XWII_KEY_THUMBR
+	KeyThumbR
 
 	// Extra C button
 	//
 	// This button is not part of the standard action pad but reported by
 	// extension controllers like the Nunchuk. It is supposed to extend the
 	// standard A and B buttons.
-	KeyC Key = C.XWII_KEY_C
+	KeyC
 
 	// Extra Z button
 	//
 	// This button is not part of the standard action pad but reported by
 	// extension controllers like the Nunchuk. It is supposed to extend the
 	// standard X and Y buttons.
-	KeyZ Key = C.XWII_KEY_Z
+	KeyZ
 
 	// Guitar Strum-bar-up event
 	//
 	// Emitted by guitars if the strum-bar is moved up.
-	KeyStrumBarUp Key = C.XWII_KEY_STRUM_BAR_UP
+	KeyStrumBarUp
 
 	// Guitar Strum-bar-down event
 	//
 	// Emitted by guitars if the strum-bar is moved down.
-	KeyStrumBarDown Key = C.XWII_KEY_STRUM_BAR_DOWN
+	KeyStrumBarDown
 
 	// Guitar Fret-Far-Up event
 	//
 	// Emitted by guitars if the upper-most fret-bar is pressed.
-	KeyFretFarUp Key = C.XWII_KEY_FRET_FAR_UP
+	KeyFretFarUp
 
 	// Guitar Fret-Up event
 	//
 	// Emitted by guitars if the second-upper fret-bar is pressed.
-	KeyFretUp Key = C.XWII_KEY_FRET_UP
+	KeyFretUp
 
 	// Guitar Fret-Mid event
 	//
 	// Emitted by guitars if the mid fret-bar is pressed.
-	KeyFretMid Key = C.XWII_KEY_FRET_MID
+	KeyFretMid
 
 	// Guitar Fret-Low event
 	//
 	// Emitted by guitars if the second-lowest fret-bar is pressed.
-	KeyFretLow Key = C.XWII_KEY_FRET_LOW
+	KeyFretLow
 
 	// Guitar Fret-Far-Low event
 	//
 	// Emitted by guitars if the lower-most fret-bar is pressed.
-	KeyFretFarLow Key = C.XWII_KEY_FRET_FAR_LOW
+	KeyFretFarLow
 )
 
 type KeyState uint
@@ -121,39 +195,14 @@ type Vec2 struct{ X, Y int32 }
 // Vec3 represents a 3D point or vector to X, Y and Z, may be interpreted different depending on the event.
 type Vec3 struct{ X, Y, Z int32 }
 
-// EventType describes the type of event as an integer.
-type EventType uint
-
-const (
-	EventTypeKey                   EventType = C.XWII_EVENT_KEY
-	EventTypeAccel                 EventType = C.XWII_EVENT_ACCEL
-	EventTypeIR                    EventType = C.XWII_EVENT_IR
-	EventTypeBalanceBoard          EventType = C.XWII_EVENT_BALANCE_BOARD
-	EventTypeMotionPlus            EventType = C.XWII_EVENT_MOTION_PLUS
-	EventTypeProControllerKey      EventType = C.XWII_EVENT_PRO_CONTROLLER_KEY
-	EventTypeProControllerMove     EventType = C.XWII_EVENT_PRO_CONTROLLER_MOVE
-	EventTypeWatch                 EventType = C.XWII_EVENT_WATCH
-	EventTypeClassicControllerKey  EventType = C.XWII_EVENT_CLASSIC_CONTROLLER_KEY
-	EventTypeClassicControllerMove EventType = C.XWII_EVENT_CLASSIC_CONTROLLER_MOVE
-	EventTypeNunchukKey            EventType = C.XWII_EVENT_NUNCHUK_KEY
-	EventTypeNunchukMove           EventType = C.XWII_EVENT_NUNCHUK_MOVE
-	EventTypeDrumsKey              EventType = C.XWII_EVENT_DRUMS_KEY
-	EventTypeDrumsMove             EventType = C.XWII_EVENT_DRUMS_MOVE
-	EventTypeGuitarKey             EventType = C.XWII_EVENT_GUITAR_KEY
-	EventTypeGuitarMove            EventType = C.XWII_EVENT_GUITAR_MOVE
-	EventTypeGone                  EventType = C.XWII_EVENT_GONE
-)
-
 // Event interface describes an event fired by Device.Dispatch(),
 // consider using a type-switch to retrieve the specific event type and data
 type Event interface {
 	fmt.Stringer
 	Timestamp() time.Time
-	Type() EventType
 }
 
 type commonEvent struct {
-	typ       EventType
 	timestamp time.Time
 }
 
@@ -161,12 +210,8 @@ func (evt *commonEvent) Timestamp() time.Time {
 	return evt.timestamp
 }
 
-func (evt *commonEvent) Type() EventType {
-	return evt.typ
-}
-
 func (evt *commonEvent) String() string {
-	return fmt.Sprintf("xwiimote-event[type=%v, timestamp=%v]", evt.typ, evt.timestamp)
+	return fmt.Sprintf("xwiimote-event[type=%T, timestamp=%v]", evt, evt.timestamp)
 }
 
 // EventKey is fired whenever a key is pressed or released. Valid
@@ -219,7 +264,7 @@ type EventBalanceBoard struct {
 // acceleration, of the motion-plus extension.
 type EventMotionPlus struct {
 	commonEvent
-	Speed [3]Vec3
+	Speed Vec3
 }
 
 // EventProControllerKey provides button events of the pro-controller
@@ -362,129 +407,684 @@ type EventGone struct {
 	commonEvent
 }
 
-func vec2event(payload C.struct_xwii_event_abs) Vec2 {
-	return Vec2{
-		X: int32(payload.x),
-		Y: int32(payload.y),
+func (dev *Device) read_umon() (Event, error) {
+	// struct udev_device *ndev, *p;
+	// const char *act, *path, *npath, *ppath, *node;
+	// bool hotplug, remove;
+
+	hotplug := false
+	remove := false
+	path := dev.dev.Syspath()
+
+	/* try to merge as many hotplug events as possible */
+	for {
+		ndev := dev.umon.ReceiveDevice()
+		if ndev == nil {
+			break
+		}
+
+		/* We are interested in three kinds of events:
+		*  1) "change" events on the main HID device notify
+		*     us of device-detection events.
+		*  1) "remove" events on the main HID device notify
+		*     us of device-removal.
+		*  3) "add"/"remove" events on input events (not
+		*     the evdev events with "devnode") notify us
+		*     of extension changes. */
+
+		act := ndev.Action()
+		npath := ndev.Syspath()
+		node := ndev.Devnode()
+		var ppath string
+		if p := ndev.ParentWithSubsystemDevtype("hid", ""); p != nil {
+			ppath = p.Syspath()
+		}
+		if act == "change" && path == npath {
+			hotplug = true
+		} else if act == "remove" && path == npath {
+			remove = true
+		} else if node == "" && path == ppath {
+			hotplug = true
+		}
 	}
+
+	/* notify caller of removals via special event */
+	if remove {
+		dev.readNodes()
+		return &EventGone{
+			commonEvent{
+				timestamp: time.Now(),
+			},
+		}, nil
+	}
+
+	/* notify caller via generic hotplug event */
+	if hotplug {
+		dev.readNodes()
+		return &EventWatch{
+			commonEvent{
+				timestamp: time.Now(),
+			},
+		}, nil
+	}
+
+	return nil, nil
 }
 
-func vec3event(payload C.struct_xwii_event_abs) Vec3 {
-	return Vec3{
-		X: int32(payload.x),
-		Y: int32(payload.y),
-		Z: int32(payload.z),
+func read_event(fd *os.File) (*C.struct_input_event, error) {
+	var ev C.struct_input_event
+	buf := unsafe.Slice((*byte)(unsafe.Pointer(&ev)), unsafe.Sizeof(ev))
+
+	n, err := fd.Read(buf)
+	if err != nil {
+		return nil, err
 	}
+	if n == 0 {
+		return nil, nil
+	}
+	if n != int(unsafe.Sizeof(ev)) {
+		return nil, io.ErrShortBuffer
+	}
+	return &ev, nil
 }
 
-func makeEvent(ev C.struct_xwii_event) Event {
-	common := commonEvent{typ: EventType(ev._type), timestamp: cTime(ev.time)}
-
-	switch common.Type() {
-	case EventTypeKey:
-		payload := (*C.struct_xwii_event_key)(unsafe.Pointer(&ev.v))
-		return &EventKey{commonEvent: common, Code: Key(payload.code), State: KeyState(payload.state)}
-
-	case EventTypeAccel:
-		payload := (*[C.XWII_ABS_NUM]C.struct_xwii_event_abs)(unsafe.Pointer(&ev.v))
-		rev := &EventAccel{commonEvent: common}
-		rev.Accel = vec3event(payload[0])
-		return rev
-
-	case EventTypeIR:
-		payload := (*[C.XWII_ABS_NUM]C.struct_xwii_event_abs)(unsafe.Pointer(&ev.v))
-		rev := &EventIR{commonEvent: common}
-		for i := range rev.Slots {
-			rev.Slots[i] = IRSlot{vec2event(payload[i])}
-		}
-		return rev
-
-	case EventTypeBalanceBoard:
-		payload := (*[C.XWII_ABS_NUM]C.struct_xwii_event_abs)(unsafe.Pointer(&ev.v))
-		rev := &EventBalanceBoard{commonEvent: common}
-		for i := range rev.Weights {
-			rev.Weights[i] = int32(payload[i].x)
-		}
-		return rev
-
-	case EventTypeMotionPlus:
-		payload := (*[C.XWII_ABS_NUM]C.struct_xwii_event_abs)(unsafe.Pointer(&ev.v))
-		rev := &EventMotionPlus{commonEvent: common}
-		for i := range rev.Speed {
-			rev.Speed[i] = vec3event(payload[i])
-		}
-		return rev
-
-	case EventTypeProControllerKey:
-		payload := (*C.struct_xwii_event_key)(unsafe.Pointer(&ev.v))
-		return &EventProControllerKey{commonEvent: common, Code: Key(payload.code), State: KeyState(payload.state)}
-
-	case EventTypeProControllerMove:
-		payload := (*[C.XWII_ABS_NUM]C.struct_xwii_event_abs)(unsafe.Pointer(&ev.v))
-		rev := &EventProControllerMove{commonEvent: common}
-		for i := range rev.Sticks {
-			rev.Sticks[i] = vec2event(payload[i])
-		}
-		return rev
-
-	case EventTypeWatch:
-		return &EventWatch{commonEvent: common}
-
-	case EventTypeClassicControllerKey:
-		payload := (*C.struct_xwii_event_key)(unsafe.Pointer(&ev.v))
-		return &EventClassicControllerKey{commonEvent: common, Code: Key(payload.code), State: KeyState(payload.state)}
-
-	case EventTypeClassicControllerMove:
-		payload := (*[C.XWII_ABS_NUM]C.struct_xwii_event_abs)(unsafe.Pointer(&ev.v))
-		rev := &EventClassicControllerMove{commonEvent: common}
-		rev.StickLeft = vec2event(payload[0])
-		rev.StickRight = vec2event(payload[1])
-		rev.ShoulderLeft = int32(payload[2].x)
-		rev.ShoulderRight = int32(payload[2].y)
-		return rev
-
-	case EventTypeNunchukKey:
-		payload := (*C.struct_xwii_event_key)(unsafe.Pointer(&ev.v))
-		return &EventNunchukKey{commonEvent: common, Code: Key(payload.code), State: KeyState(payload.state)}
-
-	case EventTypeNunchukMove:
-		payload := (*[C.XWII_ABS_NUM]C.struct_xwii_event_abs)(unsafe.Pointer(&ev.v))
-		rev := &EventNunchukMove{commonEvent: common}
-		rev.Stick = vec2event(payload[0])
-		rev.Accel = vec3event(payload[1])
-		return rev
-
-	case EventTypeDrumsKey:
-		payload := (*C.struct_xwii_event_key)(unsafe.Pointer(&ev.v))
-		return &EventDrumsKey{commonEvent: common, Code: Key(payload.code), State: KeyState(payload.state)}
-
-	case EventTypeDrumsMove:
-		payload := (*[C.XWII_ABS_NUM]C.struct_xwii_event_abs)(unsafe.Pointer(&ev.v))
-		rev := &EventDrumsMove{commonEvent: common}
-		rev.Pad = vec2event(payload[C.XWII_DRUMS_ABS_PAD])
-		rev.CymbalLeft = int32(payload[C.XWII_DRUMS_ABS_CYMBAL_LEFT].x)
-		rev.CymbalRight = int32(payload[C.XWII_DRUMS_ABS_CYMBAL_RIGHT].x)
-		rev.TomLeft = int32(payload[C.XWII_DRUMS_ABS_TOM_LEFT].x)
-		rev.TomRight = int32(payload[C.XWII_DRUMS_ABS_TOM_RIGHT].x)
-		rev.TomFarRight = int32(payload[C.XWII_DRUMS_ABS_TOM_FAR_RIGHT].x)
-		rev.Bass = int32(payload[C.XWII_DRUMS_ABS_BASS].x)
-		rev.HiHat = int32(payload[C.XWII_DRUMS_ABS_HI_HAT].x)
-		return rev
-
-	case EventTypeGuitarKey:
-		payload := (*C.struct_xwii_event_key)(unsafe.Pointer(&ev.v))
-		return &EventGuitarKey{commonEvent: common, Code: Key(payload.code), State: KeyState(payload.state)}
-
-	case EventTypeGuitarMove:
-		payload := (*[C.XWII_ABS_NUM]C.struct_xwii_event_abs)(unsafe.Pointer(&ev.v))
-		rev := &EventGuitarMove{commonEvent: common}
-		rev.Stick = vec2event(payload[0])
-		rev.WhammyBar = int32(payload[1].x)
-		rev.FretBar = int32(payload[2].x)
-		return rev
-
-	case EventTypeGone:
-		return &EventGone{commonEvent: common}
+func (dev *Device) read_core() (Event, error) {
+	fd := dev.ifs[InterfaceCore].fd
+try_again:
+	input, err := read_event(fd)
+	if err != nil {
+		dev.closeInterface(InterfaceCore)
+		dev.readNodes()
+		return &EventWatch{commonEvent{time.Now()}}, nil
 	}
-	return nil
+	if input == nil {
+		return nil, nil
+	}
+
+	if input._type != C.EV_KEY {
+		goto try_again
+	}
+
+	if input.value < 0 || input.value > 2 {
+		goto try_again
+	}
+
+	var key Key
+	switch input.code {
+	case C.KEY_LEFT:
+		key = KeyLeft
+	case C.KEY_RIGHT:
+		key = KeyRight
+	case C.KEY_UP:
+		key = KeyUp
+	case C.KEY_DOWN:
+		key = KeyDown
+	case C.KEY_NEXT:
+		key = KeyPlus
+	case C.KEY_PREVIOUS:
+		key = KeyMinus
+	case C.BTN_1:
+		key = KeyOne
+	case C.BTN_2:
+		key = KeyTwo
+	case C.BTN_A:
+		key = KeyA
+	case C.BTN_B:
+		key = KeyB
+	case C.BTN_MODE:
+		key = KeyHome
+	default:
+		goto try_again
+	}
+
+	var ev EventKey
+	ev.timestamp = cTime(input.time)
+	ev.Code = key
+	ev.State = KeyState(input.value)
+	return &ev, nil
+}
+
+func (dev *Device) read_accel() (Event, error) {
+	fd := dev.ifs[InterfaceAccel].fd
+try_again:
+	input, err := read_event(fd)
+	if err != nil {
+		dev.closeInterface(InterfaceAccel)
+		dev.readNodes()
+		return &EventWatch{commonEvent{time.Now()}}, nil
+	}
+	if input == nil {
+		return nil, nil
+	}
+
+	if input._type == C.EV_SYN {
+		dev.accel_cache.timestamp = cTime(input.time)
+		return &dev.accel_cache, nil
+	}
+
+	if input._type != C.EV_ABS {
+		goto try_again
+	}
+
+	switch input.code {
+	case C.ABS_RX:
+		dev.accel_cache.Accel.X = int32(input.value)
+	case C.ABS_RY:
+		dev.accel_cache.Accel.Y = int32(input.value)
+	case C.ABS_RZ:
+		dev.accel_cache.Accel.Z = int32(input.value)
+	}
+	goto try_again
+}
+
+func (dev *Device) read_ir() (Event, error) {
+	fd := dev.ifs[InterfaceIR].fd
+try_again:
+	input, err := read_event(fd)
+	if err != nil {
+		dev.closeInterface(InterfaceIR)
+		dev.readNodes()
+		return &EventWatch{commonEvent{time.Now()}}, nil
+	}
+	if input == nil {
+		return nil, nil
+	}
+
+	if input._type == C.EV_SYN {
+		dev.ir_cache.timestamp = cTime(input.time)
+		return &dev.ir_cache, nil
+	}
+
+	if input._type != C.EV_ABS {
+		goto try_again
+	}
+
+	switch input.code {
+	case C.ABS_HAT0X:
+		dev.ir_cache.Slots[0].X = int32(input.value)
+	case C.ABS_HAT0Y:
+		dev.ir_cache.Slots[0].Y = int32(input.value)
+	case C.ABS_HAT1X:
+		dev.ir_cache.Slots[1].X = int32(input.value)
+	case C.ABS_HAT1Y:
+		dev.ir_cache.Slots[1].Y = int32(input.value)
+	case C.ABS_HAT2X:
+		dev.ir_cache.Slots[2].X = int32(input.value)
+	case C.ABS_HAT2Y:
+		dev.ir_cache.Slots[2].Y = int32(input.value)
+	case C.ABS_HAT3X:
+		dev.ir_cache.Slots[3].X = int32(input.value)
+	case C.ABS_HAT3Y:
+		dev.ir_cache.Slots[3].Y = int32(input.value)
+	}
+	goto try_again
+}
+
+func (dev *Device) read_mp() (Event, error) {
+	fd := dev.ifs[InterfaceMotionPlus].fd
+try_again:
+	input, err := read_event(fd)
+	if err != nil {
+		dev.closeInterface(InterfaceMotionPlus)
+		dev.readNodes()
+		return &EventWatch{commonEvent{time.Now()}}, nil
+	}
+	if input == nil {
+		return nil, nil
+	}
+
+	if input._type == C.EV_SYN {
+		dev.mp_cache.timestamp = cTime(input.time)
+
+		dev.mp_cache.Speed.X -= dev.mp_normalizer.X / 100
+		dev.mp_cache.Speed.Y -= dev.mp_normalizer.Y / 100
+		dev.mp_cache.Speed.Z -= dev.mp_normalizer.Z / 100
+		if dev.mp_cache.Speed.X > 0 {
+			dev.mp_normalizer.X += dev.mp_normalize_factor
+		} else {
+			dev.mp_normalizer.X -= dev.mp_normalize_factor
+		}
+		if dev.mp_cache.Speed.Y > 0 {
+			dev.mp_normalizer.Y += dev.mp_normalize_factor
+		} else {
+			dev.mp_normalizer.Y -= dev.mp_normalize_factor
+		}
+		if dev.mp_cache.Speed.Z > 0 {
+			dev.mp_normalizer.Z += dev.mp_normalize_factor
+		} else {
+			dev.mp_normalizer.Z -= dev.mp_normalize_factor
+		}
+
+		return &dev.mp_cache, nil
+	}
+
+	if input._type != C.EV_ABS {
+		goto try_again
+	}
+
+	switch input.code {
+	case C.ABS_RX:
+		dev.mp_cache.Speed.X = int32(input.value)
+	case C.ABS_RY:
+		dev.mp_cache.Speed.Y = int32(input.value)
+	case C.ABS_RZ:
+		dev.mp_cache.Speed.Z = int32(input.value)
+	}
+
+	goto try_again
+}
+
+func (dev *Device) read_nunchuck() (Event, error) {
+	fd := dev.ifs[InterfaceNunchuk].fd
+try_again:
+	input, err := read_event(fd)
+	if err != nil {
+		dev.closeInterface(InterfaceNunchuk)
+		dev.readNodes()
+		return &EventWatch{commonEvent{time.Now()}}, nil
+	}
+	if input == nil {
+		return nil, nil
+	}
+
+	if input._type == C.EV_KEY {
+		if input.value < 0 || input.value > 2 {
+			goto try_again
+		}
+		var key Key
+		switch input.code {
+		case C.BTN_C:
+			key = KeyC
+		case C.BTN_Z:
+			key = KeyZ
+		default:
+			goto try_again
+		}
+
+		var ev EventNunchukKey
+		ev.timestamp = cTime(input.time)
+		ev.Code = key
+		ev.State = KeyState(input.value)
+		return &ev, nil
+	} else if input._type == C.EV_ABS {
+		switch input.code {
+		case C.ABS_HAT0X:
+			dev.nunchuk_cache.Stick.X = int32(input.value)
+		case C.ABS_HAT0Y:
+			dev.nunchuk_cache.Stick.Y = int32(input.value)
+		case C.ABS_RX:
+			dev.nunchuk_cache.Accel.X = int32(input.value)
+		case C.ABS_RY:
+			dev.nunchuk_cache.Accel.Y = int32(input.value)
+		case C.ABS_RZ:
+			dev.nunchuk_cache.Accel.Z = int32(input.value)
+		}
+	} else if input._type == C.EV_SYN {
+		dev.nunchuk_cache.timestamp = cTime(input.time)
+		return &dev.nunchuk_cache, nil
+	}
+
+	goto try_again
+}
+
+func (dev *Device) read_classic() (Event, error) {
+	fd := dev.ifs[InterfaceClassicController].fd
+try_again:
+	input, err := read_event(fd)
+	if err != nil {
+		dev.closeInterface(InterfaceClassicController)
+		dev.readNodes()
+		return &EventWatch{commonEvent{time.Now()}}, nil
+	}
+	if input == nil {
+		return nil, nil
+	}
+
+	if input._type == C.EV_KEY {
+		if input.value < 0 || input.value > 2 {
+			goto try_again
+		}
+
+		var key Key
+		switch input.code {
+		case C.BTN_A:
+			key = KeyA
+		case C.BTN_B:
+			key = KeyB
+		case C.BTN_X:
+			key = KeyX
+		case C.BTN_Y:
+			key = KeyY
+		case C.KEY_NEXT:
+			key = KeyPlus
+		case C.KEY_PREVIOUS:
+			key = KeyMinus
+		case C.BTN_MODE:
+			key = KeyHome
+		case C.KEY_LEFT:
+			key = KeyLeft
+		case C.KEY_RIGHT:
+			key = KeyRight
+		case C.KEY_UP:
+			key = KeyUp
+		case C.KEY_DOWN:
+			key = KeyDown
+		case C.BTN_TL:
+			key = KeyTL
+		case C.BTN_TR:
+			key = KeyTR
+		case C.BTN_TL2:
+			key = KeyZL
+		case C.BTN_TR2:
+			key = KeyZR
+		default:
+			goto try_again
+		}
+
+		var ev EventClassicControllerKey
+		ev.timestamp = cTime(input.time)
+		ev.Code = key
+		ev.State = KeyState(input.value)
+		return &ev, nil
+	} else if input._type == C.EV_ABS {
+		switch input.code {
+		case C.ABS_HAT1X:
+			dev.classic_cache.StickLeft.X = int32(input.value)
+		case C.ABS_HAT1Y:
+			dev.classic_cache.StickLeft.Y = int32(input.value)
+		case C.ABS_HAT2X:
+			dev.classic_cache.StickRight.X = int32(input.value)
+		case C.ABS_HAT2Y:
+			dev.classic_cache.StickRight.Y = int32(input.value)
+		case C.ABS_HAT3X:
+			dev.classic_cache.ShoulderLeft = int32(input.value)
+		case C.ABS_HAT3Y:
+			dev.classic_cache.ShoulderRight = int32(input.value)
+		}
+	} else if input._type == C.EV_SYN {
+		dev.classic_cache.timestamp = cTime(input.time)
+		return &dev.classic_cache, nil
+	}
+
+	goto try_again
+}
+
+func (dev *Device) read_bboard() (Event, error) {
+	fd := dev.ifs[InterfaceBalanceBoard].fd
+try_again:
+	input, err := read_event(fd)
+	if err != nil {
+		dev.closeInterface(InterfaceBalanceBoard)
+		dev.readNodes()
+		return &EventWatch{commonEvent{time.Now()}}, nil
+	}
+	if input == nil {
+		return nil, nil
+	}
+
+	if input._type == C.EV_SYN {
+		dev.bboard_cache.timestamp = cTime(input.time)
+		return &dev.bboard_cache, nil
+	}
+
+	if input._type != C.EV_ABS {
+		goto try_again
+	}
+
+	switch input.code {
+	case C.ABS_HAT0X:
+		dev.bboard_cache.Weights[0] = int32(input.value)
+	case C.ABS_HAT0Y:
+		dev.bboard_cache.Weights[1] = int32(input.value)
+	case C.ABS_HAT1X:
+		dev.bboard_cache.Weights[2] = int32(input.value)
+	case C.ABS_HAT1Y:
+		dev.bboard_cache.Weights[3] = int32(input.value)
+	}
+
+	goto try_again
+}
+
+func (dev *Device) read_pro() (Event, error) {
+	fd := dev.ifs[InterfaceProController].fd
+try_again:
+	input, err := read_event(fd)
+	if err != nil {
+		dev.closeInterface(InterfaceProController)
+		dev.readNodes()
+		return &EventWatch{commonEvent{time.Now()}}, nil
+	}
+	if input == nil {
+		return nil, nil
+	}
+
+	if input._type == C.EV_KEY {
+		if input.value < 0 || input.value > 2 {
+			goto try_again
+		}
+
+		var key Key
+		switch input.code {
+		case C.BTN_EAST:
+			key = KeyA
+		case C.BTN_SOUTH:
+			key = KeyB
+		case C.BTN_NORTH:
+			key = KeyX
+		case C.BTN_WEST:
+			key = KeyY
+		case C.BTN_START:
+			key = KeyPlus
+		case C.BTN_SELECT:
+			key = KeyMinus
+		case C.BTN_MODE:
+			key = KeyHome
+		case C.BTN_DPAD_LEFT:
+			key = KeyLeft
+		case C.BTN_DPAD_RIGHT:
+			key = KeyRight
+		case C.BTN_DPAD_UP:
+			key = KeyUp
+		case C.BTN_DPAD_DOWN:
+			key = KeyDown
+		case C.BTN_TL:
+			key = KeyTL
+		case C.BTN_TR:
+			key = KeyTR
+		case C.BTN_TL2:
+			key = KeyZL
+		case C.BTN_TR2:
+			key = KeyZR
+		case C.BTN_THUMBL:
+			key = KeyThumbL
+		case C.BTN_THUMBR:
+			key = KeyThumbR
+		default:
+			goto try_again
+		}
+
+		var ev EventProControllerKey
+		ev.timestamp = cTime(input.time)
+		ev.Code = key
+		ev.State = KeyState(input.value)
+		return &ev, nil
+	} else if input._type == C.EV_ABS {
+		switch input.code {
+		case C.ABS_X:
+			dev.pro_cache.Sticks[0].X = int32(input.value)
+		case C.ABS_Y:
+			dev.pro_cache.Sticks[0].Y = int32(input.value)
+		case C.ABS_RX:
+			dev.pro_cache.Sticks[1].X = int32(input.value)
+		case C.ABS_RY:
+			dev.pro_cache.Sticks[1].Y = int32(input.value)
+		}
+	} else if input._type == C.EV_SYN {
+		dev.pro_cache.timestamp = cTime(input.time)
+		return &dev.pro_cache, nil
+	}
+
+	goto try_again
+}
+
+func (dev *Device) read_drums() (Event, error) {
+	fd := dev.ifs[InterfaceDrums].fd
+try_again:
+	input, err := read_event(fd)
+	if err != nil {
+		dev.closeInterface(InterfaceDrums)
+		dev.readNodes()
+		return &EventWatch{commonEvent{time.Now()}}, nil
+	}
+	if input == nil {
+		return nil, nil
+	}
+
+	if input._type == C.EV_KEY {
+		if input.value < 0 || input.value > 2 {
+			goto try_again
+		}
+
+		var key Key
+		switch input.code {
+		case C.BTN_START:
+			key = KeyPlus
+		case C.BTN_SELECT:
+			key = KeyMinus
+		default:
+			goto try_again
+		}
+
+		var ev EventDrumsKey
+		ev.timestamp = cTime(input.time)
+		ev.Code = key
+		ev.State = KeyState(input.value)
+		return &ev, nil
+	} else if input._type == C.EV_ABS {
+		switch input.code {
+		case C.ABS_X:
+			dev.drums_cache.Pad.X = int32(input.value)
+		case C.ABS_Y:
+			dev.drums_cache.Pad.Y = int32(input.value)
+		case C.ABS_CYMBAL_LEFT:
+			dev.drums_cache.CymbalLeft = int32(input.value)
+		case C.ABS_CYMBAL_RIGHT:
+			dev.drums_cache.CymbalRight = int32(input.value)
+		case C.ABS_TOM_LEFT:
+			dev.drums_cache.TomLeft = int32(input.value)
+		case C.ABS_TOM_RIGHT:
+			dev.drums_cache.TomRight = int32(input.value)
+		case C.ABS_TOM_FAR_RIGHT:
+			dev.drums_cache.TomFarRight = int32(input.value)
+		case C.ABS_BASS:
+			dev.drums_cache.Bass = int32(input.value)
+		case C.ABS_HI_HAT:
+			dev.drums_cache.HiHat = int32(input.value)
+		}
+	} else if input._type == C.EV_SYN {
+		dev.drums_cache.timestamp = cTime(input.time)
+		return &dev.drums_cache, nil
+	}
+
+	goto try_again
+}
+
+func (dev *Device) read_guitar() (Event, error) {
+	fd := dev.ifs[InterfaceGuitar].fd
+try_again:
+	input, err := read_event(fd)
+	if err != nil {
+		dev.closeInterface(InterfaceGuitar)
+		dev.readNodes()
+		return &EventWatch{commonEvent{time.Now()}}, nil
+	}
+	if input == nil {
+		return nil, nil
+	}
+
+	if input._type == C.EV_KEY {
+		if input.value < 0 || input.value > 2 {
+			goto try_again
+		}
+
+		var key Key
+		switch input.code {
+		case C.BTN_FRET_FAR_UP:
+			key = KeyFretFarUp
+		case C.BTN_FRET_UP:
+			key = KeyFretUp
+		case C.BTN_FRET_MID:
+			key = KeyFretMid
+		case C.BTN_FRET_LOW:
+			key = KeyFretLow
+		case C.BTN_FRET_FAR_LOW:
+			key = KeyFretFarLow
+		case C.BTN_STRUM_BAR_UP:
+			key = KeyStrumBarUp
+		case C.BTN_STRUM_BAR_DOWN:
+			key = KeyStrumBarDown
+		case C.BTN_START:
+			key = KeyPlus
+		case C.BTN_MODE:
+			key = KeyHome
+		default:
+			goto try_again
+		}
+
+		var ev EventGuitarKey
+		ev.timestamp = cTime(input.time)
+		ev.Code = key
+		ev.State = KeyState(input.value)
+		return &ev, nil
+	} else if input._type == C.EV_ABS {
+		switch input.code {
+		case C.ABS_X:
+			dev.guitar_cache.Stick.X = int32(input.value)
+		case C.ABS_Y:
+			dev.guitar_cache.Stick.Y = int32(input.value)
+		case C.ABS_WHAMMY_BAR:
+			dev.guitar_cache.WhammyBar = int32(input.value)
+		case C.ABS_FRET_BOARD:
+			dev.guitar_cache.FretBar = int32(input.value)
+		}
+	} else if input._type == C.EV_SYN {
+		dev.guitar_cache.timestamp = cTime(input.time)
+		return &dev.guitar_cache, nil
+	}
+
+	goto try_again
+}
+
+func (dev *Device) dispatchEvent(evFd int32) (Event, error) {
+	if dev.umon != nil && dev.umon.GetFD() == int(evFd) {
+		return dev.read_umon()
+	}
+	for name, iff := range dev.ifs {
+		if iff.fd.Fd() != uintptr(evFd) {
+			continue
+		}
+		switch name {
+		case InterfaceCore:
+			return dev.read_core()
+		case InterfaceAccel:
+			return dev.read_accel()
+		case InterfaceIR:
+			return dev.read_ir()
+		case InterfaceMotionPlus:
+			return dev.read_mp()
+		case InterfaceNunchuk:
+			return dev.read_nunchuck()
+		case InterfaceClassicController:
+			return dev.read_classic()
+		case InterfaceBalanceBoard:
+			return dev.read_bboard()
+		case InterfaceProController:
+			return dev.read_pro()
+		case InterfaceDrums:
+			return dev.read_drums()
+		case InterfaceGuitar:
+			return dev.read_guitar()
+		}
+	}
+	return nil, nil
 }

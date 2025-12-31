@@ -1,17 +1,21 @@
 package xwiimote
 
 // #cgo pkg-config: libxwiimote
-// #include <xwiimote.h>
 import "C"
 import (
 	"iter"
-	"runtime"
+
+	"github.com/friedelschoen/go-xwiimote/pkg/udev"
 )
 
 // Enumerator describes a single one-time enumerator for xwiimote-devices.
 // Enumerators are not thread-safe.
 type Enumerator struct {
-	cptr *C.struct_xwii_monitor
+	udev      udev.Udev
+	enumerate *udev.Enumerate
+
+	next func() (string, bool)
+	stop func()
 }
 
 // NewEnumerator creates a new enumerator.
@@ -19,25 +23,20 @@ type Enumerator struct {
 // A monitor always provides all devices that are available on a system.
 //
 // The object and underlying structure is freed automatically by default.
-func NewEnumerator(typ MonitorType) *Enumerator {
-	enum := new(Enumerator)
-	enum.cptr = C.xwii_monitor_new(false, C.bool(typ != 0))
+func NewEnumerator(typ MonitorType) (*Enumerator, error) {
+	var enum Enumerator
 
-	runtime.SetFinalizer(enum, func(e *Enumerator) {
-		e.Free()
-	})
-	return enum
-}
-
-// Free unreferences the enumerator and frees the underlying structure.
-// Calling Free is not mandatory and is done automatically by default.
-func (enum *Enumerator) Free() {
-	if enum.cptr == nil {
-		return
+	enum.enumerate = enum.udev.NewEnumerate()
+	if err := enum.enumerate.AddMatchSubsystem("hid"); err != nil {
+		return nil, err
 	}
-	runtime.SetFinalizer(enum, nil)
-	C.xwii_monitor_unref(enum.cptr)
-	enum.cptr = nil
+
+	devs, err := enum.enumerate.Devices()
+	if err != nil {
+		return nil, err
+	}
+	enum.next, enum.stop = iter.Pull(devs)
+	return &enum, nil
 }
 
 // Next returns a single device-name on each call. A device-name is actually
@@ -46,14 +45,27 @@ func (enum *Enumerator) Free() {
 // Device object. If the enumerator is exhausted an empty string is returned and
 // no new elements will be provided.
 func (enum *Enumerator) Next() string {
-	path := C.xwii_monitor_poll(enum.cptr)
-	return cStringCopy(path)
+	path, ok := enum.next()
+	if !ok {
+		return ""
+	}
+	dev := enum.udev.NewDeviceFromSyspath(path)
+	if dev == nil {
+		return ""
+	}
+	if dev.Action() != "add" || dev.Driver() != "wiimote" || dev.Subsystem() != "hid" {
+		return ""
+	}
+	return dev.Syspath()
 }
 
 // IterDevices returns all currently available devices. It is a wrapper of Enumerator and is reentrant.
 func IterDevices(typ MonitorType) iter.Seq[string] {
 	return func(yield func(string) bool) {
-		enum := NewEnumerator(typ)
+		enum, err := NewEnumerator(typ)
+		if err != nil {
+			return
+		}
 		for {
 			path := enum.Next()
 			if path == "" {
