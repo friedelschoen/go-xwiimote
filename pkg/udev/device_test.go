@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"maps"
 	"runtime"
+	"slices"
 	"testing"
 )
 
@@ -68,11 +69,8 @@ func TestDeviceZero(t *testing.T) {
 	}
 	// Device should have Sysattrs
 	sysattrs := d.Sysattrs()
-	if len(sysattrs) == 0 {
+	if len(slices.Collect(sysattrs)) == 0 {
 		t.Fail()
-	}
-	for range d.Properties() {
-		/* do nothing */
 	}
 }
 

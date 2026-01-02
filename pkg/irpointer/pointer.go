@@ -468,7 +468,7 @@ func (ir *IRPointer) updateSensorbar(slots [4]xwiimote.IRSlot, roll float64) (ra
 		ir.Health = IRGood
 	case 2:
 		ir.SensorBar = candidates[0]
-		/* search for best candidate */
+		// search for best candidate
 		for i := 1; i < len(candidates); i++ {
 			if candidates[i].score > ir.SensorBar.score {
 				ir.SensorBar = candidates[i]

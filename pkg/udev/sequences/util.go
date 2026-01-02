@@ -50,7 +50,7 @@ func Map12[F, T1, T2 any](input iter.Seq[F], cb func(F) (T1, T2)) iter.Seq2[T1, 
 	}
 }
 
-// Map12 takes an input 2-value iterator and calls cb() for every item. The result of cb() is yielded to the output single-value iterator.
+// Map21 takes an input 2-value iterator and calls cb() for every item. The result of cb() is yielded to the output single-value iterator.
 func Map21[F1, F2, T any](input iter.Seq2[F1, F2], cb func(F1, F2) T) iter.Seq[T] {
 	return func(yield func(T) bool) {
 		input(func(first F1, second F2) bool {

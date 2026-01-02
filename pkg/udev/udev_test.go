@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func ExampleUdev_NewDeviceFromDevnum() {
+func ExampleNewDeviceFromDevnum() {
 	d := NewDeviceFromDevnum('c', MkDev(1, 8))
 	fmt.Println(d.Syspath())
 	// Output:
@@ -25,7 +25,7 @@ func TestNewDeviceFromDevnum(t *testing.T) {
 	}
 }
 
-func ExampleUdev_NewDeviceFromSyspath() {
+func ExampleNewDeviceFromSyspath() {
 	d := NewDeviceFromSyspath("/sys/devices/virtual/mem/random")
 	fmt.Println(d.Syspath())
 	// Output:
@@ -45,7 +45,7 @@ func TestNewDeviceFromSyspath(t *testing.T) {
 	}
 }
 
-func ExampleUdev_NewDeviceFromSubsystemSysname() {
+func ExampleNewDeviceFromSubsystemSysname() {
 	d := NewDeviceFromSubsystemSysname("mem", "random")
 	fmt.Println(d.Syspath())
 	// Output:
@@ -65,7 +65,7 @@ func TestNewDeviceFromSubsystemSysname(t *testing.T) {
 	}
 }
 
-func ExampleUdev_NewDeviceFromDeviceID() {
+func ExampleNewDeviceFromDeviceID() {
 	d := NewDeviceFromDeviceID("c1:8")
 	fmt.Println(d.Syspath())
 	// Output:
@@ -85,7 +85,7 @@ func TestNewDeviceFromDeviceID(t *testing.T) {
 	}
 }
 
-func ExampleUdev_NewMonitorFromNetlink() {
+func ExampleNewMonitorFromNetlink() {
 	_ = NewMonitorFromNetlink("udev")
 }
 
@@ -93,7 +93,7 @@ func TestNewMonitorFromNetlink(t *testing.T) {
 	_ = NewMonitorFromNetlink("udev")
 }
 
-func ExampleUdev_NewEnumerate() {
+func ExampleNewEnumerate() {
 	_ = NewEnumerate()
 }
 

@@ -7,22 +7,20 @@ import (
 	xwiimote "github.com/friedelschoen/go-xwiimote"
 )
 
-/*
-These tests validate the IR pointer algorithm as a pure state machine +
-geometry transform. They avoid depending on real devices and focus on
-expected behavior and invariants:
-
-- Coordinate mapping (IR slots -> normalized dots)
-- Candidate sensorbar selection logic
-- Health transitions (dead/lost/single/good)
-- Smoothing, deadzone, glitch filtering, and dropout on repeated errors
-*/
+// These tests validate the IR pointer algorithm as a pure state machine +
+// geometry transform. They avoid depending on real devices and focus on
+// expected behavior and invariants:
+//
+// - Coordinate mapping (IR slots -> normalized dots)
+// - Candidate sensorbar selection logic
+// - Health transitions (dead/lost/single/good)
+// - Smoothing, deadzone, glitch filtering, and dropout on repeated errors
 
 const (
 	epsFloat = 1e-8
 )
 
-/* Helpers */
+// Helpers
 
 func almost(a, b float64) bool {
 	return math.Abs(a-b) <= epsFloat
@@ -62,7 +60,7 @@ func copyDots(in []FVec2) []FVec2 {
 	return out
 }
 
-/* rotateDots */
+// rotateDots
 
 func TestRotateDots_ThetaZeroIsCopy(t *testing.T) {
 	in := []FVec2{{1, 2}, {-3, 4}, {0.5, -0.25}}
@@ -97,7 +95,7 @@ func TestRotateDots_PreservesNormAndInverse(t *testing.T) {
 	}
 }
 
-/* findDots */
+// findDots
 
 func TestFindDots_FiltersInvalidAndMapsCoordinates(t *testing.T) {
 	// Mapping:
@@ -129,7 +127,7 @@ func TestFindDots_FiltersInvalidAndMapsCoordinates(t *testing.T) {
 	}
 }
 
-/* findCanditates */
+// findCanditates
 
 func TestFindCandidates_GoodBarOneCandidate(t *testing.T) {
 	ir := NewIRPointer(nil)
@@ -198,7 +196,7 @@ func TestFindCandidates_TooNarrowRejected(t *testing.T) {
 // 	}
 // }
 
-/* updateSensorbar + health */
+// updateSensorbar + health
 
 func TestUpdateSensorbar_NoDotsHealthTransitions(t *testing.T) {
 	ir := NewIRPointer(nil)
@@ -247,7 +245,7 @@ func TestUpdateSensorbar_TwoDotsGivesGoodAndDistance(t *testing.T) {
 	}
 }
 
-/* Candidate selection correctness (best score within the same frame) */
+// Candidate selection correctness (best score within the same frame)
 
 // func TestUpdateSensorbar_SelectsBestCandidateInFrame(t *testing.T) {
 // 	// This test constructs a dot set that yields multiple valid candidates.
@@ -340,7 +338,7 @@ func TestUpdateSensorbar_TwoDotsGivesGoodAndDistance(t *testing.T) {
 // 	}
 // }
 
-/* Smoothing + glitch + dropout */
+// Smoothing + glitch + dropout
 
 // func TestUpdateRoll_SmoothingDeadzoneAndMovement(t *testing.T) {
 // 	params := DefaultIRParams

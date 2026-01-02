@@ -17,11 +17,11 @@ func TestEnumerateDeviceSyspaths(t *testing.T) {
 		t.Fail()
 	}
 }
-func ExampleEnumerate_SubsystemSyspaths() {
+func ExampleEnumerate_Subsystems() {
 	e := NewEnumerate()
 
 	// Enumerate all subsystem syspaths
-	dsp, _ := e.SubsystemSyspaths()
+	dsp, _ := e.Subsystems()
 	for s := range dsp {
 		fmt.Println(s)
 	}
@@ -29,7 +29,7 @@ func ExampleEnumerate_SubsystemSyspaths() {
 
 func TestEnumerateSubsystemSyspaths(t *testing.T) {
 	e := NewEnumerate()
-	ssp, err := e.SubsystemSyspaths()
+	ssp, err := e.Subsystems()
 	if err != nil {
 		t.Fail()
 	}

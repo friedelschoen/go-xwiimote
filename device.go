@@ -14,6 +14,7 @@ import (
 	"iter"
 	"os"
 	"path"
+	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -159,52 +160,49 @@ type Interface struct {
 // object.
 type Device struct {
 	poller[Event]
-	// cptr *C.struct_xwii_iface
 
-	/* epoll file descriptor */
+	//  epoll file descriptor
 	efd int
-	/* main udev device */
+	//  main udev device
 	dev *udev.Device
-	/* udev monitor */
+	//  udev monitor
 	umon *udev.Monitor
 
-	/* bitmask of open interfaces */
-	// ifaces uint ; . ifs
-	/* interfaces */
+	// open interfaces
 	ifs map[InterfaceType]*Interface
-	/* device type attribute */
-	devtype_attr string
-	/* extension attribute */
-	extension_attr string
-	/* battery capacity attribute */
-	battery_attr string
-	/* led brightness attributes */
-	led_attrs [4]string
+	//  device type attribute
+	devtypeAttr string
+	//  extension attribute
+	extensionAttr string
+	//  battery capacity attribute
+	batteryAttr string
+	//  led brightness attributes
+	ledAttrs [4]string
 
-	/* rumble-id for base-core interface force-feedback or -1 */
-	rumble_id int
-	rumble_fd *os.File
-	/* accelerometer data cache */
-	accel_cache EventAccel
-	/* IR data cache */
-	ir_cache EventIR
-	/* balance board weight cache */
-	bboard_cache EventBalanceBoard
-	/* motion plus cache */
-	mp_cache EventMotionPlus
-	/* motion plus normalization */
-	mp_normalizer       Vec3 // event_abs
-	mp_normalize_factor int32
-	/* pro controller cache */
-	pro_cache EventProControllerMove
-	/* classic controller cache */
-	classic_cache EventClassicControllerMove
-	/* nunchuk cache */
-	nunchuk_cache EventNunchukMove
-	/* drums cache */
-	drums_cache EventDrumsMove
-	/* guitar cache */
-	guitar_cache EventGuitarMove
+	//  rumble-id for base-core interface force-feedback or -1
+	rumbleID   int
+	rumbleFile *os.File
+	//  accelerometer data cache
+	accelCache EventAccel
+	//  IR data cache
+	irCache EventIR
+	//  balance board weight cache
+	bboardCache EventBalanceBoard
+	//  motion plus cache
+	mpCache EventMotionPlus
+	//  motion plus normalization
+	mpNormalizer     Vec3 // event_abs
+	mpNormaizeFactor int32
+	//  pro controller cache
+	proCache EventProControllerMove
+	//  classic controller cache
+	classicCache EventClassicControllerMove
+	//  nunchuk cache
+	nunchukCache EventNunchukMove
+	//  drums cache
+	drumsCache EventDrumsMove
+	//  guitar cache
+	guitarCache EventGuitarMove
 }
 
 // NewDevice creates a new device object. No interfaces on the device are opened by
@@ -229,7 +227,7 @@ func newDeviceFromUdev(dev *udev.Device) (*Device, error) {
 	d.poller = newPoller(&d)
 	d.dev = dev
 
-	d.rumble_id = -1
+	d.rumbleID = -1
 
 	driver := d.dev.Driver()
 	subs := d.dev.Subsystem()
@@ -237,8 +235,8 @@ func newDeviceFromUdev(dev *udev.Device) (*Device, error) {
 		return nil, ErrInvalidDevice
 	}
 	syspath := dev.Syspath()
-	d.devtype_attr = path.Join(syspath, "devtype")
-	d.extension_attr = path.Join(syspath, "extension")
+	d.devtypeAttr = path.Join(syspath, "devtype")
+	d.extensionAttr = path.Join(syspath, "extension")
 
 	var err error
 	d.efd, err = syscall.EpollCreate1(syscall.EPOLL_CLOEXEC)
@@ -250,6 +248,8 @@ func newDeviceFromUdev(dev *udev.Device) (*Device, error) {
 		syscall.Close(d.efd)
 		return nil, err
 	}
+
+	runtime.AddCleanup(&d, func(fd int) { syscall.Close(d.efd) }, d.efd)
 
 	return &d, nil
 }
@@ -287,15 +287,15 @@ func (dev *Device) readNodes() error {
 	// it's an eventXY entry. If it is, we save the node, otherwise, it's
 	// skipped.
 	// For other subsystems we simply cache the attribute paths.
-	prev_if := InterfaceType(0)
+	prevIf := InterfaceType(0)
 	matches, err := e.Devices()
 	if err != nil {
 		return err
 	}
 	for syspath := range matches {
 		d := udev.NewDeviceFromSyspath(syspath)
-		tif := prev_if
-		prev_if = 0
+		tif := prevIf
+		prevIf = 0
 
 		name := d.Sysname()
 		switch d.Subsystem() {
@@ -307,7 +307,7 @@ func (dev *Device) readNodes() error {
 				}
 				tif = typeFromName(name)
 				if tif > 0 {
-					prev_if = tif
+					prevIf = tif
 				}
 			} else if strings.HasPrefix(name, "event") {
 				if tif == 0 {
@@ -336,19 +336,19 @@ func (dev *Device) readNodes() error {
 				continue
 			}
 
-			if dev.led_attrs[num-'0'] != "" {
+			if dev.ledAttrs[num-'0'] != "" {
 				continue
 			}
-			dev.led_attrs[num-'0'] = path.Join(syspath, "brightness")
+			dev.ledAttrs[num-'0'] = path.Join(syspath, "brightness")
 		case "power_supply":
-			if dev.battery_attr != "" {
+			if dev.batteryAttr != "" {
 				continue
 			}
-			dev.battery_attr = path.Join(syspath, "capacity")
+			dev.batteryAttr = path.Join(syspath, "capacity")
 		}
 	}
 
-	/* close no longer available ifaces */
+	//  close no longer available ifaces
 	ifs := InterfaceType(0)
 	for iname, iff := range dev.ifs {
 		if !iff.available {
@@ -360,7 +360,7 @@ func (dev *Device) readNodes() error {
 	return nil
 }
 
-// Close interfaces on this device.
+// CloseInterfaces closes one or more interfaces on this device.
 func (dev *Device) CloseInterfaces(ifaces InterfaceType) {
 	ifaces &= InterfaceAll
 	if ifaces == 0 {
@@ -372,14 +372,15 @@ func (dev *Device) CloseInterfaces(ifaces InterfaceType) {
 	}
 
 	for iface := range (ifaces & (InterfaceCore | InterfaceProController)).iter() {
-		if iff, ok := dev.ifs[iface]; ok && iff.fd == dev.rumble_fd {
-			dev.rumble_id = -1
-			dev.rumble_fd = nil
+		if iff, ok := dev.ifs[iface]; ok && iff.fd == dev.rumbleFile {
+			dev.rumbleID = -1
+			dev.rumbleFile = nil
 			break
 		}
 	}
 }
 
+// closeInterface closes one interface
 func (dev *Device) closeInterface(tif InterfaceType) {
 	iff, ok := dev.ifs[tif]
 	if !ok {
@@ -392,12 +393,6 @@ func (dev *Device) closeInterface(tif InterfaceType) {
 	syscall.EpollCtl(dev.efd, syscall.EPOLL_CTL_DEL, int(iff.fd.Fd()), nil)
 	iff.fd.Close()
 	delete(dev.ifs, tif)
-}
-
-// Free unreferences the devices and frees the underlying structure.
-// Calling Free is not mandatory and is done automatically by default.
-func (dev *Device) Close() error {
-	return syscall.Close(dev.efd)
 }
 
 // GetSyspath returns the sysfs path of the underlying device. It is not neccesarily
@@ -424,7 +419,7 @@ func (dev *Device) FD() int {
 // the hotplug-detection into your udev-monitor.
 func (dev *Device) Watch(hotplug bool) error {
 	if !hotplug {
-		/* remove device watch descriptor */
+		//  remove device watch descriptor
 
 		if dev.umon == nil {
 			return nil
@@ -436,7 +431,7 @@ func (dev *Device) Watch(hotplug bool) error {
 		return nil
 	}
 
-	/* add device watch descriptor */
+	//  add device watch descriptor
 	if dev.umon != nil {
 		return nil
 	}
@@ -557,10 +552,8 @@ func (dev *Device) openInterface(tif InterfaceType, wr bool) error {
 	return nil
 }
 
-/*
- * Upload the generic rumble event to the device. This may later be used for
- * force-feedback effects. The event id is safed for later use.
- */
+// Upload the generic rumble event to the device. This may later be used for
+// force-feedback effects. The event id is safed for later use.
 func (dev *Device) uploadRumble(fd *os.File) error {
 	effect := C.struct_ff_effect{
 		_type: C.FF_RUMBLE,
@@ -573,8 +566,8 @@ func (dev *Device) uploadRumble(fd *os.File) error {
 	if _, _, err := syscall.Syscall(syscall.SYS_IOCTL, fd.Fd(), C.EVIOCSFF, uintptr(unsafe.Pointer(&effect))); err != 0 {
 		return err
 	}
-	dev.rumble_id = int(effect.id)
-	dev.rumble_fd = fd
+	dev.rumbleID = int(effect.id)
+	dev.rumbleFile = fd
 	return nil
 }
 
@@ -623,7 +616,7 @@ func (dev *Device) Available() InterfaceType {
 func (dev *Device) Poll() (Event, bool, error) {
 	var ep [32]syscall.EpollEvent
 
-	/* write outgoing events here */
+	//  write outgoing events here
 	n, err := syscall.EpollWait(dev.efd, ep[:], 0)
 	if err != nil {
 		return nil, false, err
@@ -647,20 +640,20 @@ func (dev *Device) Poll() (Event, bool, error) {
 // This requires the core-interface to be opened in writable mode.
 func (dev *Device) Rumble(state bool) error {
 
-	if dev.rumble_fd == nil || dev.rumble_id < 0 {
+	if dev.rumbleFile == nil || dev.rumbleID < 0 {
 		return os.ErrInvalid
 	}
 
 	var ev C.struct_input_event
 	ev._type = C.EV_FF
-	ev.code = C.ushort(dev.rumble_id)
+	ev.code = C.ushort(dev.rumbleID)
 	if state {
 		ev.value = 1
 	}
 
 	buf := unsafe.Slice((*byte)(unsafe.Pointer(&ev)), unsafe.Sizeof(ev))
 
-	n, err := dev.rumble_fd.Write(buf)
+	n, err := dev.rumbleFile.Write(buf)
 	if err != nil {
 		return err
 	}
@@ -676,7 +669,7 @@ func (dev *Device) Rumble(state bool) error {
 // LEDs are a static interface that does not have to be opened first.
 func (dev *Device) GetLED() (result Led, _ error) {
 	for i := range 4 {
-		cont, err := os.ReadFile(dev.led_attrs[i])
+		cont, err := os.ReadFile(dev.ledAttrs[i])
 		if err != nil {
 			return 0, err
 		}
@@ -698,7 +691,7 @@ func (dev *Device) SetLED(leds Led) error {
 		if state {
 			cont = "1\n"
 		}
-		if err := os.WriteFile(dev.led_attrs[i], []byte(cont), 0); err != nil {
+		if err := os.WriteFile(dev.ledAttrs[i], []byte(cont), 0); err != nil {
 			return err
 		}
 	}
@@ -709,7 +702,7 @@ func (dev *Device) SetLED(leds Led) error {
 //
 // Batteries are a static interface that does not have to be opened first.
 func (dev *Device) GetBattery() (uint, error) {
-	cont, err := os.ReadFile(dev.battery_attr)
+	cont, err := os.ReadFile(dev.batteryAttr)
 	if err != nil {
 		return 0, nil
 	}
@@ -723,7 +716,7 @@ func (dev *Device) GetBattery() (uint, error) {
 //
 // This is a static interface that does not have to be opened first.
 func (dev *Device) GetDevType() (string, error) {
-	cont, err := os.ReadFile(dev.devtype_attr)
+	cont, err := os.ReadFile(dev.devtypeAttr)
 	return strings.TrimSpace(string(cont)), err
 }
 
@@ -732,7 +725,7 @@ func (dev *Device) GetDevType() (string, error) {
 //
 // This is a static interface that does not have to be opened first.
 func (dev *Device) GetExtension() (string, error) {
-	cont, err := os.ReadFile(dev.extension_attr)
+	cont, err := os.ReadFile(dev.extensionAttr)
 	return strings.TrimSpace(string(cont)), err
 }
 
@@ -748,10 +741,10 @@ func (dev *Device) GetExtension() (string, error) {
 // input. This is an angoing calibration which modifies the internal state of
 // the x, y and z values.
 func (dev *Device) SetMPNormalization(x, y, z, factor int32) {
-	dev.mp_normalizer.X = x * 100
-	dev.mp_normalizer.Y = y * 100
-	dev.mp_normalizer.Z = z * 100
-	dev.mp_normalize_factor = factor
+	dev.mpNormalizer.X = x * 100
+	dev.mpNormalizer.Y = y * 100
+	dev.mpNormalizer.Z = z * 100
+	dev.mpNormaizeFactor = factor
 }
 
 // GetMPNormalization reads the Motion-Plus normalization and calibration values. Please see
@@ -764,10 +757,10 @@ func (dev *Device) SetMPNormalization(x, y, z, factor int32) {
 // previously via SetMPNormalization() and you can feed them back
 // in later.
 func (dev *Device) GetMPNormalization() (x, y, z, factor int32) {
-	return dev.mp_normalizer.X / 100,
-		dev.mp_normalizer.Y / 100,
-		dev.mp_normalizer.Z / 100,
-		dev.mp_normalize_factor
+	return dev.mpNormalizer.X / 100,
+		dev.mpNormalizer.Y / 100,
+		dev.mpNormalizer.Z / 100,
+		dev.mpNormaizeFactor
 }
 
 func (dev *Device) String() string {
