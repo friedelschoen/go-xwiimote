@@ -19,7 +19,7 @@ func watchDevice(dev *xwiimote.Device) {
 	}
 	defer mouse.Close()
 
-	if err := dev.OpenInterfaces(xwiimote.InterfaceCore|xwiimote.InterfaceIR|xwiimote.InterfaceAccel, false); err != nil {
+	if err := dev.OpenInterfaces(false, &xwiimote.InterfaceCore{}, &xwiimote.InterfaceIR{}, &xwiimote.InterfaceAccel{}); err != nil {
 		log.Fatalf("error: unable to open device: %v", err)
 	}
 
