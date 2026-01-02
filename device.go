@@ -3,133 +3,18 @@ package xwiimote
 
 // #include <linux/input.h>
 // #include <errno.h>
-//
-// unsigned int eviocgname(size_t sz) { return EVIOCGNAME(sz); }
 import "C"
 import (
-	"bytes"
-	"errors"
-	"io"
-	"iter"
+	"fmt"
 	"os"
 	"path"
 	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
-	"unsafe"
 
 	"github.com/friedelschoen/go-xwiimote/pkg/udev"
 )
-
-var (
-	ErrInvalidDevice = errors.New("device is not a wiimote")
-)
-
-// InterfaceType describes a single interface. These are bit-masks that can be
-// binary-ORed. If an interface does not provide such a constant, it is static
-// and can be used without opening/closing it.
-type InterfaceType int
-
-const (
-	// Core interface
-	InterfaceCore InterfaceType = 0x000001
-	// Accelerometer interface
-	InterfaceAccel InterfaceType = 0x000002
-	// IR interface
-	InterfaceIR InterfaceType = 0x000004
-	// MotionPlus extension interface
-	InterfaceMotionPlus InterfaceType = 0x000100
-	// Nunchuk extension interface
-	InterfaceNunchuk InterfaceType = 0x000200
-	// ClassicController extension interface
-	InterfaceClassicController InterfaceType = 0x000400
-	// BalanceBoard extension interface
-	InterfaceBalanceBoard InterfaceType = 0x000800
-	// ProController extension interface
-	InterfaceProController InterfaceType = 0x001000
-	// Drums extension interface
-	InterfaceDrums InterfaceType = 0x002000
-	// Guitar extension interface
-	InterfaceGuitar InterfaceType = 0x004000
-	// Special flag ORed with all valid interfaces
-	InterfaceAll InterfaceType = InterfaceCore |
-		InterfaceAccel |
-		InterfaceIR |
-		InterfaceMotionPlus |
-		InterfaceNunchuk |
-		InterfaceClassicController |
-		InterfaceBalanceBoard |
-		InterfaceProController |
-		InterfaceDrums |
-		InterfaceGuitar
-)
-
-// Name returns the original name of that interface.
-func (dev InterfaceType) Name() string {
-	switch dev {
-	case InterfaceCore:
-		return "Nintendo Wii Remote"
-	case InterfaceAccel:
-		return "Nintendo Wii Remote Accelerometer"
-	case InterfaceIR:
-		return "Nintendo Wii Remote IR"
-	case InterfaceMotionPlus:
-		return "Nintendo Wii Remote Motion Plus"
-	case InterfaceNunchuk:
-		return "Nintendo Wii Remote Nunchuk"
-	case InterfaceClassicController:
-		return "Nintendo Wii Remote Classic Controller"
-	case InterfaceBalanceBoard:
-		return "Nintendo Wii Remote Balance Board"
-	case InterfaceProController:
-		return "Nintendo Wii Remote Pro Controller"
-	case InterfaceDrums:
-		return "Nintendo Wii Remote Drums"
-	case InterfaceGuitar:
-		return "Nintendo Wii Remote Guitar"
-	default:
-		return "Nintendo Wii Remote Unknown?"
-	}
-}
-
-func (ifaces InterfaceType) iter() iter.Seq[InterfaceType] {
-	return func(yield func(InterfaceType) bool) {
-		for i := InterfaceType(1); i != 0 && i <= InterfaceAll; i <<= 1 {
-			if ifaces&i != 0 && !yield(i) {
-				return
-			}
-		}
-	}
-}
-
-// Name returns the original name of that interface.
-func typeFromName(name string) InterfaceType {
-	switch name {
-	case "Nintendo Wii Remote":
-		return InterfaceCore
-	case "Nintendo Wii Remote Accelerometer":
-		return InterfaceAccel
-	case "Nintendo Wii Remote IR":
-		return InterfaceIR
-	case "Nintendo Wii Remote Motion Plus":
-		return InterfaceMotionPlus
-	case "Nintendo Wii Remote Nunchuk":
-		return InterfaceNunchuk
-	case "Nintendo Wii Remote Classic Controller":
-		return InterfaceClassicController
-	case "Nintendo Wii Remote Balance Board":
-		return InterfaceBalanceBoard
-	case "Nintendo Wii Remote Pro Controller":
-		return InterfaceProController
-	case "Nintendo Wii Remote Drums":
-		return InterfaceDrums
-	case "Nintendo Wii Remote Guitar":
-		return InterfaceGuitar
-	default:
-		return 0
-	}
-}
 
 // Led described a Led of an device. The leds are counted left-to-right and can be OR'ed together.
 type Led uint
@@ -154,8 +39,10 @@ type Device struct {
 	//  udev monitor
 	umon *udev.Monitor
 
-	// open interfaces
-	ifs map[InterfaceType]Interface
+	// open interfaces -- node -> interface
+	ifs map[string]Interface
+	// available interfaces -- node -> name
+	availIfs map[string]string
 	//  device type attribute
 	devtypeAttr string
 	//  extension attribute
@@ -165,30 +52,9 @@ type Device struct {
 	//  led brightness attributes
 	ledAttrs [4]string
 
-	//  rumble-id for base-core interface force-feedback or -1
-	rumbleID   int
-	rumbleFile *os.File
-	//  accelerometer data cache
-	accelCache EventAccel
-	//  IR data cache
-	irCache EventIR
-	//  balance board weight cache
-	bboardCache EventBalanceBoard
-	//  motion plus cache
-	mpCache EventMotionPlus
 	//  motion plus normalization
 	mpNormalizer     Vec3 // event_abs
 	mpNormaizeFactor int32
-	//  pro controller cache
-	proCache EventProControllerMove
-	//  classic controller cache
-	classicCache EventClassicControllerMove
-	//  nunchuk cache
-	nunchukCache EventNunchukMove
-	//  drums cache
-	drumsCache EventDrumsMove
-	//  guitar cache
-	guitarCache EventGuitarMove
 }
 
 // NewDevice creates a new device object. No interfaces on the device are opened by
@@ -213,12 +79,10 @@ func newDeviceFromUdev(dev *udev.Device) (*Device, error) {
 	d.poller = newPoller(&d)
 	d.dev = dev
 
-	d.rumbleID = -1
-
 	driver := d.dev.Driver()
 	subs := d.dev.Subsystem()
 	if driver != "wiimote" || subs != "hid" {
-		return nil, ErrInvalidDevice
+		return nil, os.ErrInvalid
 	}
 	syspath := dev.Syspath()
 	d.devtypeAttr = path.Join(syspath, "devtype")
@@ -229,7 +93,6 @@ func newDeviceFromUdev(dev *udev.Device) (*Device, error) {
 	if err != nil {
 		return nil, err
 	}
-	d.ifs = make(map[InterfaceType]Interface)
 	if err := d.readNodes(); err != nil {
 		syscall.Close(d.efd)
 		return nil, err
@@ -263,7 +126,12 @@ func (dev *Device) readNodes() error {
 		return err
 	}
 
-	available := make(map[InterfaceType]struct{})
+	if dev.availIfs == nil {
+		dev.availIfs = make(map[string]string)
+	}
+	if dev.ifs == nil {
+		dev.ifs = make(map[string]Interface)
+	}
 
 	// The returned list is sorted. So we first get an inputXY entry,
 	// possibly followed by the inputXY/eventXY entry. We remember the type
@@ -271,15 +139,13 @@ func (dev *Device) readNodes() error {
 	// it's an eventXY entry. If it is, we save the node, otherwise, it's
 	// skipped.
 	// For other subsystems we simply cache the attribute paths.
-	prevIf := InterfaceType(0)
+	var prevIf string
 	matches, err := e.Devices()
 	if err != nil {
 		return err
 	}
 	for syspath := range matches {
 		d := udev.NewDeviceFromSyspath(syspath)
-		tif := prevIf
-		prevIf = 0
 
 		name := d.Sysname()
 		switch d.Subsystem() {
@@ -289,28 +155,16 @@ func (dev *Device) readNodes() error {
 				if name == "" {
 					continue
 				}
-				tif = typeFromName(name)
-				if tif > 0 {
-					prevIf = tif
-				}
+				prevIf = name
 			} else if strings.HasPrefix(name, "event") {
-				if tif == 0 {
+				if prevIf == "" {
 					continue
 				}
 				node := d.Devnode()
 				if node == "" {
 					continue
 				}
-				if iff, ok := dev.ifs[tif]; ok {
-					if iff.Node() == node {
-						available[tif] = struct{}{}
-					} else {
-						delete(dev.ifs, tif)
-					}
-				} else {
-					dev.ifs[tif] = dev.newInterface(tif, node)
-					available[tif] = struct{}{}
-				}
+				dev.availIfs[prevIf] = node
 			}
 		case "leds":
 			num := syspath[len(syspath)-1]
@@ -331,50 +185,29 @@ func (dev *Device) readNodes() error {
 	}
 
 	// close no longer available ifaces
-	cin := InterfaceType(0)
-	for tif := range dev.ifs {
-		if _, ok := available[tif]; !ok {
-			cin |= tif
+	for _, iff := range dev.ifs {
+		if _, ok := dev.availIfs[iff.Name()]; !ok {
+			dev.CloseInterfaces(iff)
 		}
 	}
-	dev.closeInterface(cin)
 
 	return nil
 }
 
 // CloseInterfaces closes one or more interfaces on this device.
-func (dev *Device) CloseInterfaces(ifaces InterfaceType) {
-	ifaces &= InterfaceAll
-	if ifaces == 0 {
-		return
+func (dev *Device) CloseInterfaces(ifaces ...Interface) error {
+	if len(ifaces) == 0 {
+		return nil
 	}
-
-	for iface := range ifaces.iter() {
-		dev.closeInterface(iface)
-	}
-
-	for iface := range (ifaces & (InterfaceCore | InterfaceProController)).iter() {
-		if iff, ok := dev.ifs[iface]; ok && iff.FD() == dev.rumbleFile {
-			dev.rumbleID = -1
-			dev.rumbleFile = nil
-			break
+	var errs []error
+	for _, iface := range ifaces {
+		if err := iface.close(); err != nil {
+			errs = append(errs, err)
+			continue
 		}
+		delete(dev.ifs, iface.Node())
 	}
-}
-
-// closeInterface closes one interface
-func (dev *Device) closeInterface(tif InterfaceType) {
-	iff, ok := dev.ifs[tif]
-	if !ok {
-		return
-	}
-	if iff.FD() == nil {
-		return
-	}
-
-	syscall.EpollCtl(dev.efd, syscall.EPOLL_CTL_DEL, int(iff.FD().Fd()), nil)
-	iff.FD().Close()
-	delete(dev.ifs, tif)
+	return dev.readNodes()
 }
 
 // GetSyspath returns the sysfs path of the underlying device. It is not neccesarily
@@ -455,98 +288,28 @@ func (dev *Device) Watch(hotplug bool) error {
 // kernel removes the interface or on error conditions. You always get an
 // EventWatch event which you should react on. This is returned
 // regardless whether Watch() was enabled or not.
-func (dev *Device) OpenInterfaces(ifaces InterfaceType, wr bool) error {
-	ifaces &= InterfaceAll
-	ifaces &= ^dev.Opened()
-	if ifaces == 0 {
-		return nil
-	}
-
-	for iface := range ifaces.iter() {
-		if err := dev.openInterface(iface, wr); err != nil {
+func (dev *Device) OpenInterfaces(wr bool, ifaces ...Interface) error {
+	for _, iface := range ifaces {
+		node, ok := dev.availIfs[iface.Name()]
+		fmt.Printf("iface %q -> %q (%v)\n", iface.Name(), node, ok)
+		if !ok {
+			continue
+		}
+		if err := iface.open(dev, node, wr); err != nil {
 			return err
 		}
+		dev.ifs[node] = iface
 	}
-
-	for iface := range (ifaces & (InterfaceCore | InterfaceProController)).iter() {
-		if err := dev.uploadRumble(dev.ifs[iface].FD()); err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 
-func ioctl(fd, cmd, ptr uintptr) error {
-	_, _, err := syscall.Syscall(syscall.SYS_IOCTL, fd, cmd, ptr)
-	if err == 0 {
-		return nil
-	}
-	return err
-}
-
-func devname(fd *os.File) (string, error) {
-	var buffer [256]byte
-	if err := ioctl(fd.Fd(), uintptr(C.eviocgname(C.size_t(len(buffer)))), uintptr(unsafe.Pointer(&buffer[0]))); err != nil {
-		return "", err
-	}
-	length := bytes.IndexByte(buffer[:], 0)
-	return string(buffer[:length]), nil
-}
-
-func (dev *Device) openInterface(tif InterfaceType, wr bool) error {
-	iff, ok := dev.ifs[tif]
-	if !ok {
-		return os.ErrNotExist
-	}
-	return iff.open(wr)
-}
-
-// Upload the generic rumble event to the device. This may later be used for
-// force-feedback effects. The event id is safed for later use.
-func (dev *Device) uploadRumble(fd *os.File) error {
-	effect := C.struct_ff_effect{
-		_type: C.FF_RUMBLE,
-		id:    -1,
-	}
-
-	rmb := (*C.struct_ff_rumble_effect)(unsafe.Pointer(&effect.u))
-	rmb.strong_magnitude = 1
-
-	if err := ioctl(fd.Fd(), C.EVIOCSFF, uintptr(unsafe.Pointer(&effect))); err != nil {
-		return err
-	}
-	dev.rumbleID = int(effect.id)
-	dev.rumbleFile = fd
-	return nil
-}
-
-// Opened returns a bitmask of opened interfaces. Interfaces may be closed due to
-// error-conditions at any time. However, interfaces are never opened
-// automatically.
-//
-// You will get notified whenever this bitmask changes, except on explicit
-// calls to Open() and Close(). See the EventWatch event for more information.
-func (dev *Device) Opened() InterfaceType {
-	var ifaces InterfaceType
-	for name, iff := range dev.ifs {
-		if iff.FD() != nil {
-			ifaces |= name
-		}
-	}
-	return ifaces
-}
-
-// Available returns a bitmask of available devices. These devices can be opened and are
+// IsAvailable returns a bitmask of available devices. These devices can be opened and are
 // guaranteed to be present on the hardware at this time. If you watch your
 // device for hotplug events you will get notified whenever this bitmask changes.
 // See the WatchEvent event for more information.
-func (dev *Device) Available() InterfaceType {
-	var ifaces InterfaceType
-	for name := range dev.ifs {
-		ifaces |= name
-	}
-	return ifaces
+func (dev *Device) Available(iface Interface) bool {
+	_, ok := dev.availIfs[iface.Name()]
+	return ok
 }
 
 // Poll for incoming events.
@@ -582,35 +345,6 @@ func (dev *Device) Poll() (Event, bool, error) {
 	}
 
 	return nil, false, ErrPollAgain
-}
-
-// Rumble sets the rumble motor.
-//
-// This requires the core-interface to be opened in writable mode.
-func (dev *Device) Rumble(state bool) error {
-
-	if dev.rumbleFile == nil || dev.rumbleID < 0 {
-		return os.ErrInvalid
-	}
-
-	var ev C.struct_input_event
-	ev._type = C.EV_FF
-	ev.code = C.ushort(dev.rumbleID)
-	if state {
-		ev.value = 1
-	}
-
-	buf := unsafe.Slice((*byte)(unsafe.Pointer(&ev)), unsafe.Sizeof(ev))
-
-	n, err := dev.rumbleFile.Write(buf)
-	if err != nil {
-		return err
-	}
-	if n != int(unsafe.Sizeof(ev)) {
-		return io.ErrShortWrite
-	}
-	return nil
-
 }
 
 // GetLED reads the LED state for the given LED.

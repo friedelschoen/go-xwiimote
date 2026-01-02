@@ -1,11 +1,17 @@
 package xwiimote
 
-//go:generate stringer -type InterfaceType,Led,Key,KeyState,MonitorType -output stringer.go
+//go:generate stringer -type Led,Key,KeyState,MonitorType -output stringer.go
 
 // #include <string.h>
 // #include <stdlib.h>
+// #include <linux/input.h>
+// #include <errno.h>
+//
+// unsigned int eviocgname(size_t sz) { return EVIOCGNAME(sz); }
 import "C"
 import (
+	"bytes"
+	"os"
 	"syscall"
 	"time"
 	"unsafe"
@@ -38,15 +44,19 @@ func cTime(t C.struct_timeval) time.Time {
 	return time.Unix(int64(t.tv_sec), int64(t.tv_usec))
 }
 
-// cStringCopy takes a NUL-terminated C-string and copyies it into a string and the cstr is freed afterwards.
-// If the input is nil it returns an empty string.
-func cStringCopy(cstr *C.char) string {
-	if cstr == nil {
-		return ""
+func ioctl(fd, cmd, ptr uintptr) error {
+	_, _, err := syscall.Syscall(syscall.SYS_IOCTL, fd, cmd, ptr)
+	if err == 0 {
+		return nil
 	}
-	size := C.strlen(cstr)
-	result := make([]byte, size)
-	C.memcpy(unsafe.Pointer(&result[0]), unsafe.Pointer(cstr), size)
-	C.free(unsafe.Pointer(cstr))
-	return string(result)
+	return err
+}
+
+func devname(fd *os.File) (string, error) {
+	var buffer [256]byte
+	if err := ioctl(fd.Fd(), uintptr(C.eviocgname(C.size_t(len(buffer)))), uintptr(unsafe.Pointer(&buffer[0]))); err != nil {
+		return "", err
+	}
+	length := bytes.IndexByte(buffer[:], 0)
+	return string(buffer[:length]), nil
 }

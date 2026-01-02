@@ -1,13 +1,8 @@
 package xwiimote
 
-// #include "input-defs.h"
-import "C"
 import (
 	"fmt"
-	"io"
-	"os"
 	"time"
-	"unsafe"
 )
 
 // Key Event Identifiers
@@ -125,17 +120,17 @@ type Vec3 struct{ X, Y, Z int32 }
 // Event interface describes an event fired by Device.Dispatch(),
 // consider using a type-switch to retrieve the specific event type and data
 type Event interface {
-	Device() *Device
+	Interface() Interface
 	Timestamp() time.Time
 }
 
 type commonEvent struct {
-	device    *Device
+	iface     Interface
 	timestamp time.Time
 }
 
-func (evt *commonEvent) Device() *Device {
-	return evt.device
+func (evt *commonEvent) Interface() Interface {
+	return evt.iface
 }
 
 func (evt *commonEvent) Timestamp() time.Time {
@@ -387,50 +382,16 @@ func (dev *Device) readUmon(pollEv uint32) (Event, error) {
 	return nil, nil
 }
 
-func readEvent(fd *os.File) (*C.struct_input_event, error) {
-	var ev C.struct_input_event
-	buf := unsafe.Slice((*byte)(unsafe.Pointer(&ev)), unsafe.Sizeof(ev))
-
-	n, err := fd.Read(buf)
-	if err != nil {
-		return nil, err
-	}
-	if n == 0 {
-		return nil, nil
-	}
-	if n != int(unsafe.Sizeof(ev)) {
-		return nil, io.ErrShortBuffer
-	}
-	return &ev, nil
-}
-
 func (dev *Device) dispatchEvent(evFd int32, pollEv uint32) (Event, error) {
 	if dev.umon != nil && dev.umon.GetFD() == int(evFd) {
 		return dev.readUmon(pollEv)
 	}
-	for name, iff := range dev.ifs {
-		if iff.FD().Fd() != uintptr(evFd) {
+	for _, iff := range dev.ifs {
+		if iff.fd().Fd() != uintptr(evFd) {
 			continue
 		}
-		for {
-			input, err := readEvent(iff.FD())
-			if err != nil {
-				dev.closeInterface(name)
-				dev.readNodes()
-				return &EventWatch{commonEvent{dev, time.Now()}}, nil
-			}
-			if input == nil {
-				break
-			}
-			ts := cTime(input.time)
-			eventType := uint16(input._type)
-			code := uint16(input.code)
-			value := int32(input.value)
-
-			event, err := iff.acceptEvent(ts, eventType, code, value)
-			if event != nil || err != nil {
-				return event, err
-			}
+		if eif, ok := iff.(eventInterface); ok {
+			return dispatchEvent(eif)
 		}
 	}
 
