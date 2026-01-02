@@ -112,7 +112,7 @@ func TestPollerWait_CallsFDOnlyWhenDontWaitFalse(t *testing.T) {
 	p := newPoller(d)
 
 	// Forceer pad: !dontwait => hij gaat FD() halen.
-	p.dontwait = false
+	p.wait = true
 
 	ev, err := p.Wait(0)
 	if err != nil || ev != 7 {
@@ -124,7 +124,7 @@ func TestPollerWait_CallsFDOnlyWhenDontWaitFalse(t *testing.T) {
 	}
 
 	// cont=false => dontwait moet false blijven na return.
-	if p.dontwait {
+	if !p.wait {
 		t.Fatalf("expected dontwait=false after cont=false, got true")
 	}
 }

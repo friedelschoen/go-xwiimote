@@ -2,17 +2,14 @@ package udev
 
 import (
 	"fmt"
+	"maps"
 	"runtime"
 	"testing"
 )
 
 func ExampleDevice() {
-
-	// Create Udev
-	u := Udev{}
-
 	// Create new Device based on subsystem and sysname
-	d := u.NewDeviceFromSubsystemSysname("mem", "zero")
+	d := NewDeviceFromSubsystemSysname("mem", "zero")
 
 	// Extract information
 	fmt.Printf("Sysname:%v\n", d.Sysname())
@@ -26,7 +23,7 @@ func ExampleDevice() {
 	fmt.Printf("Driver:%v\n", d.Driver())
 
 	// Use one of the iterators
-	for key, value := range d.PropertyIterator() {
+	for key, value := range d.Properties() {
 		_ = fmt.Sprintf("Property:%v=%v\n", key, value)
 	}
 	// Output:
@@ -42,8 +39,7 @@ func ExampleDevice() {
 }
 
 func TestDeviceZero(t *testing.T) {
-	u := Udev{}
-	d := u.NewDeviceFromDeviceID("c1:5")
+	d := NewDeviceFromDeviceID("c1:5")
 	if d.Subsystem() != "mem" {
 		t.Fail()
 	}
@@ -67,7 +63,7 @@ func TestDeviceZero(t *testing.T) {
 	}
 	// Device should have Properties
 	properties := d.Properties()
-	if len(properties) == 0 {
+	if len(maps.Collect(properties)) == 0 {
 		t.Fail()
 	}
 	// Device should have Sysattrs
@@ -75,7 +71,7 @@ func TestDeviceZero(t *testing.T) {
 	if len(sysattrs) == 0 {
 		t.Fail()
 	}
-	for _ = range d.PropertyIterator() {
+	for range d.Properties() {
 		/* do nothing */
 	}
 }

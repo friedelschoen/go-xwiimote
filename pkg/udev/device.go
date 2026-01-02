@@ -1,12 +1,8 @@
 package udev
 
-/*
-#cgo LDFLAGS: -ludev
-#include <libudev.h>
-#include <linux/types.h>
-#include <stdlib.h>
-#include <linux/kdev_t.h>
-*/
+// #cgo pkg-config: libudev
+// #include <libudev.h>
+// #include <stdlib.h>
 import "C"
 import (
 	"errors"
@@ -16,22 +12,13 @@ import (
 
 // Device wraps a libudev device object
 type Device struct {
+	udevContext
 	ptr *C.struct_udev_device
-	u   *Udev
-}
-
-// Lock the udev context
-func (d *Device) lock() {
-	d.u.m.Lock()
-}
-
-// Unlock the udev context
-func (d *Device) unlock() {
-	d.u.m.Unlock()
 }
 
 func deviceUnref(d *Device) {
 	C.udev_device_unref(d.ptr)
+	C.udev_unref(d.udevPtr)
 }
 
 // Parent returns the parent Device, or nil if the receiver has no parent Device
@@ -39,10 +26,10 @@ func (d *Device) Parent() *Device {
 	d.lock()
 	defer d.unlock()
 	ptr := C.udev_device_get_parent(d.ptr)
-	if ptr != nil {
-		C.udev_device_ref(ptr)
-	}
-	return d.u.newDevice(ptr)
+
+	pd := newDevice()
+	pd.ptr = ptr
+	return pd
 }
 
 // ParentWithSubsystemDevtype returns the parent Device with the given subsystem and devtype,
@@ -54,10 +41,9 @@ func (d *Device) ParentWithSubsystemDevtype(subsystem, devtype string) *Device {
 	defer freeCharPtr(ss)
 	defer freeCharPtr(dt)
 	ptr := C.udev_device_get_parent_with_subsystem_devtype(d.ptr, ss, dt)
-	if ptr != nil {
-		C.udev_device_ref(ptr)
-	}
-	return d.u.newDevice(ptr)
+	pd := newDevice()
+	pd.ptr = ptr
+	return pd
 }
 
 // Devpath returns the kernel devpath value of the udev device.
@@ -124,82 +110,37 @@ func (d *Device) IsInitialized() bool {
 	return C.udev_device_get_is_initialized(d.ptr) != 0
 }
 
-// Devlinks retrieves the map of device links pointing to the device file of the udev device.
-// The path is an absolute path, and starts with the device directory.
-func (d *Device) Devlinks() (r map[string]struct{}) {
-	d.lock()
-	defer d.unlock()
-	r = make(map[string]struct{})
-	for l := C.udev_device_get_devlinks_list_entry(d.ptr); l != nil; l = C.udev_list_entry_get_next(l) {
-		r[C.GoString(C.udev_list_entry_get_name(l))] = struct{}{}
-	}
-	return
-}
-
 // DevlinkIterator returns an Iterator over the device links pointing to the device file of the udev device.
 // The Iterator is using the github.com/jkeiser/iter package.
 // Values are returned as an interface{} and should be cast to string.
-func (d *Device) DevlinkIterator() iter.Seq[string] {
-	return enumerateName(d, func() *C.struct_udev_list_entry {
+func (d *Device) Devlinks() iter.Seq[string] {
+	return enumerateName(&d.udevContext, func() *C.struct_udev_list_entry {
+		d.lock()
+		defer d.unlock()
 		return C.udev_device_get_devlinks_list_entry(d.ptr)
 	})
 
-}
-
-// Properties retrieves a map[string]string of key/value device properties of the udev device.
-func (d *Device) Properties() (r map[string]string) {
-	d.lock()
-	defer d.unlock()
-	r = make(map[string]string)
-	for l := C.udev_device_get_properties_list_entry(d.ptr); l != nil; l = C.udev_list_entry_get_next(l) {
-		r[C.GoString(C.udev_list_entry_get_name(l))] = C.GoString(C.udev_list_entry_get_value(l))
-	}
-	return
 }
 
 // PropertyIterator returns an Iterator over the key/value device properties of the udev device.
 // The Iterator is using the github.com/jkeiser/iter package.
 // Values are returned as an interface{} and should be cast to []string,
 // which will have length 2 and represent a Key/Value pair.
-func (d *Device) PropertyIterator() iter.Seq2[string, string] {
-	return func(yield func(string, string) bool) {
-		var l *C.struct_udev_list_entry
-		for {
-			d.lock()
-			defer d.unlock()
-			if l == nil {
-				l = C.udev_device_get_properties_list_entry(d.ptr)
-			} else {
-				l = C.udev_list_entry_get_next(l)
-				if l == nil {
-					return
-				}
-			}
-			if !yield(
-				C.GoString(C.udev_list_entry_get_name(l)),
-				C.GoString(C.udev_list_entry_get_value(l))) {
-				return
-			}
-		}
-	}
-}
-
-// Tags retrieves the Set of tags attached to the udev device.
-func (d *Device) Tags() (r map[string]struct{}) {
-	d.lock()
-	defer d.unlock()
-	r = make(map[string]struct{})
-	for l := C.udev_device_get_tags_list_entry(d.ptr); l != nil; l = C.udev_list_entry_get_next(l) {
-		r[C.GoString(C.udev_list_entry_get_name(l))] = struct{}{}
-	}
-	return
+func (d *Device) Properties() iter.Seq2[string, string] {
+	return enumerateNameValue(&d.udevContext, func() *C.struct_udev_list_entry {
+		d.lock()
+		defer d.unlock()
+		return C.udev_device_get_properties_list_entry(d.ptr)
+	})
 }
 
 // TagIterator returns an Iterator over the tags attached to the udev device.
 // The Iterator is using the github.com/jkeiser/iter package.
 // Values are returned as an interface{} and should be cast to string.
-func (d *Device) TagIterator() iter.Seq[string] {
-	return enumerateName(d, func() *C.struct_udev_list_entry {
+func (d *Device) Tags() iter.Seq[string] {
+	return enumerateName(&d.udevContext, func() *C.struct_udev_list_entry {
+		d.lock()
+		defer d.unlock()
 		return C.udev_device_get_tags_list_entry(d.ptr)
 	})
 }
@@ -219,7 +160,9 @@ func (d *Device) Sysattrs() (r map[string]struct{}) {
 // The Iterator is using the github.com/jkeiser/iter package.
 // Values are returned as an interface{} and should be cast to string.
 func (d *Device) SysattrIterator() iter.Seq[string] {
-	return enumerateName(d, func() *C.struct_udev_list_entry {
+	return enumerateName(&d.udevContext, func() *C.struct_udev_list_entry {
+		d.lock()
+		defer d.unlock()
 		return C.udev_device_get_sysattr_list_entry(d.ptr)
 	})
 }

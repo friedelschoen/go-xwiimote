@@ -7,7 +7,9 @@ package xwiimote
 // unsigned int eviocgname(size_t sz) { return EVIOCGNAME(sz); }
 import "C"
 import (
+	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"iter"
 	"os"
@@ -93,6 +95,16 @@ func (dev InterfaceType) Name() string {
 	}
 }
 
+func (ifaces InterfaceType) iter() iter.Seq[InterfaceType] {
+	return func(yield func(InterfaceType) bool) {
+		for i := InterfaceType(1); i != 0 && i <= InterfaceAll; i <<= 1 {
+			if ifaces&i != 0 && !yield(i) {
+				return
+			}
+		}
+	}
+}
+
 // Name returns the original name of that interface.
 func typeFromName(name string) InterfaceType {
 	switch name {
@@ -142,21 +154,6 @@ type Interface struct {
 	available bool
 }
 
-type Integer interface {
-	~int | ~int8 | ~int16 | ~int32 | ~int64 |
-		~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64
-}
-
-func iterIfaceTypes[T Integer](ifaces T) iter.Seq[T] {
-	return func(yield func(T) bool) {
-		for i := T(1); i <= ifaces; i >>= 1 {
-			if ifaces&i != 0 && !yield(i) {
-				return
-			}
-		}
-	}
-}
-
 // Device describes the communication with a single device. That is, you
 // create one for each device you use. All sub-interfaces are opened on this
 // object.
@@ -166,8 +163,6 @@ type Device struct {
 
 	/* epoll file descriptor */
 	efd int
-	/* udev context */
-	udev *udev.Udev
 	/* main udev device */
 	dev *udev.Device
 	/* udev monitor */
@@ -221,21 +216,16 @@ type Device struct {
 //
 // The object and underlying structure is freed automatically by default.
 func NewDevice(syspath string) (*Device, error) {
-
-	// const char *driver, *subs;
-	// int ret, i;
-	var udev udev.Udev
 	dev := udev.NewDeviceFromSyspath(syspath)
 	if dev == nil {
 		return nil, os.ErrInvalid
 	}
 
-	return newDeviceWithUdev(&udev, dev)
+	return newDeviceFromUdev(dev)
 }
 
-func newDeviceWithUdev(udev *udev.Udev, dev *udev.Device) (*Device, error) {
+func newDeviceFromUdev(dev *udev.Device) (*Device, error) {
 	var d Device
-	d.udev = udev
 	d.poller = newPoller(&d)
 	d.dev = dev
 
@@ -255,6 +245,7 @@ func newDeviceWithUdev(udev *udev.Udev, dev *udev.Device) (*Device, error) {
 	if err != nil {
 		return nil, err
 	}
+	d.ifs = make(map[InterfaceType]*Interface)
 	if err := d.readNodes(); err != nil {
 		syscall.Close(d.efd)
 		return nil, err
@@ -263,17 +254,15 @@ func newDeviceWithUdev(udev *udev.Udev, dev *udev.Device) (*Device, error) {
 	return &d, nil
 }
 
-/*
- * Scan the device \dev for child input devices and update our device-node
- * cache with the new information. This is called during device setup to
- * find all /dev/input/eventX nodes for all currently available interfaces.
- * We also cache attribute paths for sub-devices like LEDs or batteries.
- *
- * When called during hotplug-events, this updates all currently known
- * information and removes nodes that are no longer present.
- */
+// Scan the device \dev for child input devices and update our device-node
+// cache with the new information. This is called during device setup to
+// find all /dev/input/eventX nodes for all currently available interfaces.
+// We also cache attribute paths for sub-devices like LEDs or batteries.
+//
+// When called during hotplug-events, this updates all currently known
+// information and removes nodes that are no longer present.
 func (dev *Device) readNodes() error {
-	e := dev.udev.NewEnumerate()
+	e := udev.NewEnumerate()
 
 	if err := e.AddMatchSubsystem("input"); err != nil {
 		return err
@@ -292,23 +281,23 @@ func (dev *Device) readNodes() error {
 		i.available = false
 	}
 
-	/* The returned list is sorted. So we first get an inputXY entry,
-	 * possibly followed by the inputXY/eventXY entry. We remember the type
-	 * of a found inputXY entry, and check the next list-entry, whether
-	 * it's an eventXY entry. If it is, we save the node, otherwise, it's
-	 * skipped.
-	 * For other subsystems we simply cache the attribute paths. */
+	// The returned list is sorted. So we first get an inputXY entry,
+	// possibly followed by the inputXY/eventXY entry. We remember the type
+	// of a found inputXY entry, and check the next list-entry, whether
+	// it's an eventXY entry. If it is, we save the node, otherwise, it's
+	// skipped.
+	// For other subsystems we simply cache the attribute paths.
 	prev_if := InterfaceType(0)
 	matches, err := e.Devices()
 	if err != nil {
 		return err
 	}
-	for name := range matches {
-		d := dev.udev.NewDeviceFromSyspath(name)
+	for syspath := range matches {
+		d := udev.NewDeviceFromSyspath(syspath)
 		tif := prev_if
 		prev_if = 0
 
-		syspath := d.Syspath()
+		name := d.Sysname()
 		switch d.Subsystem() {
 		case "input":
 			if strings.HasPrefix(name, "input") {
@@ -372,17 +361,17 @@ func (dev *Device) readNodes() error {
 }
 
 // Close interfaces on this device.
-func (dev *Device) CloseInterface(ifaces InterfaceType) {
+func (dev *Device) CloseInterfaces(ifaces InterfaceType) {
 	ifaces &= InterfaceAll
 	if ifaces == 0 {
 		return
 	}
 
-	for iface := range iterIfaceTypes(ifaces) {
+	for iface := range ifaces.iter() {
 		dev.closeInterface(iface)
 	}
 
-	for iface := range iterIfaceTypes(ifaces & (InterfaceCore | InterfaceProController)) {
+	for iface := range (ifaces & (InterfaceCore | InterfaceProController)).iter() {
 		if iff, ok := dev.ifs[iface]; ok && iff.fd == dev.rumble_fd {
 			dev.rumble_id = -1
 			dev.rumble_fd = nil
@@ -434,9 +423,6 @@ func (dev *Device) FD() int {
 // if your application uses its own udev-monitor, you should instead integrate
 // the hotplug-detection into your udev-monitor.
 func (dev *Device) Watch(hotplug bool) error {
-	// int fd, ret, set;
-	// struct epoll_event ep;
-
 	if !hotplug {
 		/* remove device watch descriptor */
 
@@ -455,7 +441,7 @@ func (dev *Device) Watch(hotplug bool) error {
 		return nil
 	}
 
-	dev.umon = dev.udev.NewMonitorFromNetlink("udev")
+	dev.umon = udev.NewMonitorFromNetlink("udev")
 	if err := dev.umon.FilterAddMatchSubsystem("input"); err != nil {
 		return err
 	}
@@ -467,11 +453,11 @@ func (dev *Device) Watch(hotplug bool) error {
 	}
 
 	fd := dev.umon.GetFD()
-	syscall.SetNonblock(int(fd), true)
+	syscall.SetNonblock(fd, true)
 
 	var ep syscall.EpollEvent
 	ep.Events = syscall.EPOLLIN
-	ep.Fd = int32(dev.efd)
+	ep.Fd = int32(fd)
 
 	if err := syscall.EpollCtl(dev.efd, syscall.EPOLL_CTL_ADD, fd, &ep); err != nil {
 		return err
@@ -480,7 +466,7 @@ func (dev *Device) Watch(hotplug bool) error {
 	return nil
 }
 
-// Open all the requested interfaces. If InterfaceWritable is also set,
+// OpenInterfaces all the requested interfaces. If InterfaceWritable is also set,
 // the interfaces are opened with write-access. Note that interfaces that are
 // already opened are ignored and not touched.
 // If any interface fails to open, this function still tries to open the other
@@ -492,23 +478,21 @@ func (dev *Device) Watch(hotplug bool) error {
 // kernel removes the interface or on error conditions. You always get an
 // EventWatch event which you should react on. This is returned
 // regardless whether Watch() was enabled or not.
-func (dev *Device) Open(ifaces InterfaceType) error {
+func (dev *Device) OpenInterfaces(ifaces InterfaceType) error {
 	wr := ifaces&InterfaceWritable > 0
 	ifaces &= InterfaceAll
-	for name := range dev.ifs {
-		ifaces &= ^name
-	}
+	ifaces &= ^dev.Opened()
 	if ifaces == 0 {
 		return nil
 	}
 
-	for iface := range iterIfaceTypes(ifaces) {
-		if err := dev.openOneInterface(iface, wr); err != nil {
+	for iface := range ifaces.iter() {
+		if err := dev.openInterface(iface, wr); err != nil {
 			return err
 		}
 	}
 
-	for iface := range iterIfaceTypes(ifaces & (InterfaceCore | InterfaceProController)) {
+	for iface := range (ifaces & (InterfaceCore | InterfaceProController)).iter() {
 		if err := dev.uploadRumble(dev.ifs[iface].fd); err != nil {
 			return err
 		}
@@ -517,7 +501,7 @@ func (dev *Device) Open(ifaces InterfaceType) error {
 	return nil
 }
 
-func (dev *Device) openOneInterface(tif InterfaceType, wr bool) error {
+func (dev *Device) openInterface(tif InterfaceType, wr bool) error {
 	// char name[256];
 	// struct epoll_event ep;
 	// unsigned int flags;
@@ -541,20 +525,14 @@ func (dev *Device) openOneInterface(tif InterfaceType, wr bool) error {
 		return err
 	}
 
-	// if ioctl(fd, EVIOCGNAME(sizeof(name)), name) < 0 {
-	// 	close(fd)
-	// 	return -errno
-	// }
-
-	// name[sizeof(name)-1] = 0
-	// if strcmp(if_to_name_table[tif], name) {
-	// 	close(fd)
-	// 	return -ENODEV
-	// }
-
-	var name [256]byte
-	if _, _, err := syscall.Syscall(syscall.SYS_IOCTL, fd.Fd(), uintptr(C.eviocgname(C.size_t(len(name)))), uintptr(unsafe.Pointer(&name[0]))); err != 0 {
+	var namebuf [256]byte
+	if _, _, err := syscall.Syscall(syscall.SYS_IOCTL, fd.Fd(), uintptr(C.eviocgname(C.size_t(len(namebuf)))), uintptr(unsafe.Pointer(&namebuf[0]))); err != 0 {
 		return err
+	}
+	namebuflen := bytes.IndexByte(namebuf[:], 0)
+	name := string(namebuf[:namebuflen])
+	if name != tif.Name() {
+		return fmt.Errorf("device does not hold correct name: expected %q, got %q", tif.Name(), name)
 	}
 
 	var ep syscall.EpollEvent
@@ -634,19 +612,15 @@ func (dev *Device) Available() InterfaceType {
 // optionally and error, if the error is ErrRetry, consider polling again for new events.
 func (dev *Device) Poll() (Event, bool, error) {
 	var ep [32]syscall.EpollEvent
-	// int ret, i;
-	// size_t siz;
-	// struct xwii_event ev;
 
 	/* write outgoing events here */
-
 	n, err := syscall.EpollWait(dev.efd, ep[:], 0)
 	if err != nil {
 		return nil, false, err
 	}
-
-	for i := 0; i < n; i++ {
-		ev, err := dev.dispatchEvent(ep[i].Fd)
+	for _, pollev := range ep[:n] {
+		fmt.Print("--got event\n")
+		ev, err := dev.dispatchEvent(pollev.Fd, pollev.Events)
 		if err != nil {
 			return nil, false, err
 		}

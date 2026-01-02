@@ -30,18 +30,17 @@ type pollDriver[T any] interface {
 
 // poller drives a PollMonitor using poll(2) or retry logic.
 type poller[T any] struct {
-	drv      pollDriver[T]
-	fd       int
-	dontwait bool
+	drv  pollDriver[T]
+	fd   int
+	wait bool
 }
 
 // newPoller creates a new Poller for the given monitor.
 // The poller initially assumes that Poll() should be called without waiting.
 func newPoller[T any](drv pollDriver[T]) poller[T] {
 	return poller[T]{
-		drv:      drv,
-		fd:       -1,
-		dontwait: true,
+		drv: drv,
+		fd:  -1,
 	}
 }
 
@@ -49,12 +48,12 @@ func newPoller[T any](drv pollDriver[T]) poller[T] {
 // It handles ErrRetry internally and returns the first valid event or error.
 func (p *poller[T]) Wait(timeout time.Duration) (T, error) {
 	for {
-		if !p.dontwait {
+		if p.wait {
 			if p.fd == -1 {
 				p.fd = p.drv.FD()
 			}
 			if p.fd >= 0 {
-				fds := [...]unix.PollFd{{
+				fds := [1]unix.PollFd{{
 					Fd:     int32(p.fd),
 					Events: unix.POLLIN,
 				}}
@@ -65,13 +64,12 @@ func (p *poller[T]) Wait(timeout time.Duration) (T, error) {
 				unix.Poll(fds[:], dur)
 			}
 		}
-		ev, cont, err := p.drv.Poll()
+		ev, moredata, err := p.drv.Poll()
+		p.wait = !moredata
 		if errors.Is(err, ErrPollAgain) {
-			p.dontwait = true
 			time.Sleep(10 * time.Millisecond)
 			continue
 		}
-		p.dontwait = cont && err == nil
 		return ev, err
 	}
 }

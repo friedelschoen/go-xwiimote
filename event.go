@@ -1,79 +1,6 @@
 package xwiimote
 
-// #include <linux/input.h>
-//
-// #ifndef BTN_EAST
-// #define BTN_EAST 0x131
-// #endif
-// #ifndef BTN_SOUTH
-// #define BTN_SOUTH 0x130
-// #endif
-// #ifndef BTN_NORTH
-// #define BTN_NORTH 0x133
-// #endif
-// #ifndef BTN_WEST
-// #define BTN_WEST 0x134
-// #endif
-// #ifndef BTN_DPAD_LEFT
-// #define BTN_DPAD_LEFT 0x222
-// #endif
-// #ifndef BTN_DPAD_RIGHT
-// #define BTN_DPAD_RIGHT 0x223
-// #endif
-// #ifndef BTN_DPAD_UP
-// #define BTN_DPAD_UP 0x220
-// #endif
-// #ifndef BTN_DPAD_DOWN
-// #define BTN_DPAD_DOWN 0x221
-// #endif
-// #ifndef ABS_CYMBAL_LEFT
-// #define ABS_CYMBAL_LEFT 0x45
-// #endif
-// #ifndef ABS_CYMBAL_RIGHT
-// #define ABS_CYMBAL_RIGHT 0x46
-// #endif
-// #ifndef ABS_TOM_LEFT
-// #define ABS_TOM_LEFT 0x41
-// #endif
-// #ifndef ABS_TOM_RIGHT
-// #define ABS_TOM_RIGHT 0x42
-// #endif
-// #ifndef ABS_TOM_FAR_RIGHT
-// #define ABS_TOM_FAR_RIGHT 0x43
-// #endif
-// #ifndef ABS_BASS
-// #define ABS_BASS 0x48
-// #endif
-// #ifndef ABS_HI_HAT
-// #define ABS_HI_HAT 0x49
-// #endif
-// #ifndef BTN_FRET_FAR_UP
-// #define BTN_FRET_FAR_UP 0x224
-// #endif
-// #ifndef BTN_FRET_UP
-// #define BTN_FRET_UP 0x225
-// #endif
-// #ifndef BTN_FRET_MID
-// #define BTN_FRET_MID 0x226
-// #endif
-// #ifndef BTN_FRET_LOW
-// #define BTN_FRET_LOW 0x227
-// #endif
-// #ifndef BTN_FRET_FAR_LOW
-// #define BTN_FRET_FAR_LOW 0x228
-// #endif
-// #ifndef BTN_STRUM_BAR_UP
-// #define BTN_STRUM_BAR_UP 0x229
-// #endif
-// #ifndef BTN_STRUM_BAR_DOWN
-// #define BTN_STRUM_BAR_DOWN 0x22a
-// #endif
-// #ifndef ABS_WHAMMY_BAR
-// #define ABS_WHAMMY_BAR 0x4b
-// #endif
-// #ifndef ABS_FRET_BOARD
-// #define ABS_FRET_BOARD 0x4a
-// #endif
+// #include "input-defs.h"
 import "C"
 import (
 	"fmt"
@@ -198,7 +125,6 @@ type Vec3 struct{ X, Y, Z int32 }
 // Event interface describes an event fired by Device.Dispatch(),
 // consider using a type-switch to retrieve the specific event type and data
 type Event interface {
-	fmt.Stringer
 	Timestamp() time.Time
 }
 
@@ -208,10 +134,6 @@ type commonEvent struct {
 
 func (evt *commonEvent) Timestamp() time.Time {
 	return evt.timestamp
-}
-
-func (evt *commonEvent) String() string {
-	return fmt.Sprintf("xwiimote-event[type=%T, timestamp=%v]", evt, evt.timestamp)
 }
 
 // EventKey is fired whenever a key is pressed or released. Valid
@@ -407,11 +329,8 @@ type EventGone struct {
 	commonEvent
 }
 
-func (dev *Device) read_umon() (Event, error) {
-	// struct udev_device *ndev, *p;
-	// const char *act, *path, *npath, *ppath, *node;
-	// bool hotplug, remove;
-
+func (dev *Device) readUmon(pollEv uint32) (Event, error) {
+	_ = pollEv
 	hotplug := false
 	remove := false
 	path := dev.dev.Syspath()
@@ -439,6 +358,7 @@ func (dev *Device) read_umon() (Event, error) {
 		if p := ndev.ParentWithSubsystemDevtype("hid", ""); p != nil {
 			ppath = p.Syspath()
 		}
+		fmt.Printf("-- act=%v, npath=%v, node=%v, parent=%v\n", act, npath, node, ppath)
 		if act == "change" && path == npath {
 			hotplug = true
 		} else if act == "remove" && path == npath {
@@ -488,7 +408,7 @@ func read_event(fd *os.File) (*C.struct_input_event, error) {
 	return &ev, nil
 }
 
-func (dev *Device) read_core() (Event, error) {
+func (dev *Device) readCore() (Event, error) {
 	fd := dev.ifs[InterfaceCore].fd
 try_again:
 	input, err := read_event(fd)
@@ -544,7 +464,7 @@ try_again:
 	return &ev, nil
 }
 
-func (dev *Device) read_accel() (Event, error) {
+func (dev *Device) readAccel() (Event, error) {
 	fd := dev.ifs[InterfaceAccel].fd
 try_again:
 	input, err := read_event(fd)
@@ -577,7 +497,7 @@ try_again:
 	goto try_again
 }
 
-func (dev *Device) read_ir() (Event, error) {
+func (dev *Device) readIR() (Event, error) {
 	fd := dev.ifs[InterfaceIR].fd
 try_again:
 	input, err := read_event(fd)
@@ -620,7 +540,7 @@ try_again:
 	goto try_again
 }
 
-func (dev *Device) read_mp() (Event, error) {
+func (dev *Device) readMP() (Event, error) {
 	fd := dev.ifs[InterfaceMotionPlus].fd
 try_again:
 	input, err := read_event(fd)
@@ -674,7 +594,7 @@ try_again:
 	goto try_again
 }
 
-func (dev *Device) read_nunchuck() (Event, error) {
+func (dev *Device) readNunchuck() (Event, error) {
 	fd := dev.ifs[InterfaceNunchuk].fd
 try_again:
 	input, err := read_event(fd)
@@ -727,7 +647,7 @@ try_again:
 	goto try_again
 }
 
-func (dev *Device) read_classic() (Event, error) {
+func (dev *Device) readClassic() (Event, error) {
 	fd := dev.ifs[InterfaceClassicController].fd
 try_again:
 	input, err := read_event(fd)
@@ -809,7 +729,7 @@ try_again:
 	goto try_again
 }
 
-func (dev *Device) read_bboard() (Event, error) {
+func (dev *Device) readBBoard() (Event, error) {
 	fd := dev.ifs[InterfaceBalanceBoard].fd
 try_again:
 	input, err := read_event(fd)
@@ -845,7 +765,7 @@ try_again:
 	goto try_again
 }
 
-func (dev *Device) read_pro() (Event, error) {
+func (dev *Device) readPro() (Event, error) {
 	fd := dev.ifs[InterfaceProController].fd
 try_again:
 	input, err := read_event(fd)
@@ -927,7 +847,7 @@ try_again:
 	goto try_again
 }
 
-func (dev *Device) read_drums() (Event, error) {
+func (dev *Device) readDrums() (Event, error) {
 	fd := dev.ifs[InterfaceDrums].fd
 try_again:
 	input, err := read_event(fd)
@@ -989,7 +909,7 @@ try_again:
 	goto try_again
 }
 
-func (dev *Device) read_guitar() (Event, error) {
+func (dev *Device) readGuitar() (Event, error) {
 	fd := dev.ifs[InterfaceGuitar].fd
 try_again:
 	input, err := read_event(fd)
@@ -1055,9 +975,9 @@ try_again:
 	goto try_again
 }
 
-func (dev *Device) dispatchEvent(evFd int32) (Event, error) {
+func (dev *Device) dispatchEvent(evFd int32, pollEv uint32) (Event, error) {
 	if dev.umon != nil && dev.umon.GetFD() == int(evFd) {
-		return dev.read_umon()
+		return dev.readUmon(pollEv)
 	}
 	for name, iff := range dev.ifs {
 		if iff.fd.Fd() != uintptr(evFd) {
@@ -1065,25 +985,25 @@ func (dev *Device) dispatchEvent(evFd int32) (Event, error) {
 		}
 		switch name {
 		case InterfaceCore:
-			return dev.read_core()
+			return dev.readCore()
 		case InterfaceAccel:
-			return dev.read_accel()
+			return dev.readAccel()
 		case InterfaceIR:
-			return dev.read_ir()
+			return dev.readIR()
 		case InterfaceMotionPlus:
-			return dev.read_mp()
+			return dev.readMP()
 		case InterfaceNunchuk:
-			return dev.read_nunchuck()
+			return dev.readNunchuck()
 		case InterfaceClassicController:
-			return dev.read_classic()
+			return dev.readClassic()
 		case InterfaceBalanceBoard:
-			return dev.read_bboard()
+			return dev.readBBoard()
 		case InterfaceProController:
-			return dev.read_pro()
+			return dev.readPro()
 		case InterfaceDrums:
-			return dev.read_drums()
+			return dev.readDrums()
 		case InterfaceGuitar:
-			return dev.read_guitar()
+			return dev.readGuitar()
 		}
 	}
 	return nil, nil

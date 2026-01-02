@@ -1,7 +1,7 @@
 package xwiimote
 
 import (
-	"iter"
+	"fmt"
 	"os"
 	"syscall"
 
@@ -32,11 +32,12 @@ func (t MonitorType) Name() string {
 //
 // Monitors are not thread-safe.
 type Monitor struct {
-	udev udev.Udev
 	poller[*Device]
 	monitor *udev.Monitor
-	next    func() (*Device, error, bool)
-	stop    func()
+	enum    chan struct {
+		dev *Device
+		err error
+	}
 }
 
 // NewMonitor creates a new monitor.
@@ -49,17 +50,29 @@ func NewMonitor(typ MonitorType) (*Monitor, error) {
 	var mon Monitor
 	mon.poller = newPoller(&mon)
 
-	devs, err := iterDevicesWithUdev(&mon.udev)
+	devs, err := IterDevices()
 	if err != nil {
 		return nil, err
 	}
-	mon.next, mon.stop = iter.Pull2(devs)
+	mon.enum = make(chan struct {
+		dev *Device
+		err error
+	})
+	go func() {
+		for dev, err := range devs {
+			mon.enum <- struct {
+				dev *Device
+				err error
+			}{dev, err}
+		}
+		close(mon.enum)
+	}()
 
-	mon.monitor = mon.udev.NewMonitorFromNetlink(typ.Name())
+	mon.monitor = udev.NewMonitorFromNetlink(typ.Name())
 	if mon.monitor == nil {
 		return nil, os.ErrInvalid
 	}
-	if err := mon.monitor.FilterAddMatchSubsystemDevtype("hid", ""); err != nil {
+	if err := mon.monitor.FilterAddMatchSubsystem("hid"); err != nil {
 		return nil, err
 	}
 	if err := mon.monitor.EnableReceiving(); err != nil {
@@ -89,24 +102,20 @@ func (mon *Monitor) FD() int {
 //
 // Use FD() to get notified when a new event is available.
 func (mon *Monitor) Poll() (*Device, bool, error) {
-	if mon.next != nil {
-		dev, err, ok := mon.next()
-		if ok {
-			return dev, true, err
-		}
-		/* ok == false -> iteration ended */
-		mon.stop()
-		mon.next = nil
-		mon.stop = nil
+	// test if enumerator has devices, then wait for new devices
+	if iter, ok := <-mon.enum; ok {
+		return iter.dev, true, iter.err
 	}
+	fmt.Print("monitoring...\n")
 
 	dev := mon.monitor.ReceiveDevice()
 	if dev == nil {
-		return nil, false, nil
+		return nil, false, ErrPollAgain
 	}
-	if dev.Action() != "add" || dev.Driver() != "wiimote" || dev.Subsystem() != "hid" {
-		return nil, true, os.ErrInvalid
+	fmt.Printf("act=%v, drv=%v, subs=%v\n", dev.Action(), dev.Driver(), dev.Subsystem())
+	if (dev.Action() != "" && dev.Action() != "add") || dev.Driver() != "wiimote" || dev.Subsystem() != "hid" {
+		return nil, false, ErrPollAgain
 	}
-	iff, err := newDeviceWithUdev(&mon.udev, dev)
-	return iff, true, err
+	iff, err := newDeviceFromUdev(dev)
+	return iff, false, err
 }
