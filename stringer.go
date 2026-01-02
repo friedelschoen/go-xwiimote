@@ -19,31 +19,51 @@ func _() {
 	_ = x[InterfaceDrums-8192]
 	_ = x[InterfaceGuitar-16384]
 	_ = x[InterfaceAll-32519]
-	_ = x[InterfaceWritable-65536]
 }
 
-const _InterfaceType_name = "InterfaceCoreInterfaceAccelInterfaceIRInterfaceMotionPlusInterfaceNunchukInterfaceClassicControllerInterfaceBalanceBoardInterfaceProControllerInterfaceDrumsInterfaceGuitarInterfaceAllInterfaceWritable"
+const (
+	_InterfaceType_name_0 = "InterfaceCoreInterfaceAccel"
+	_InterfaceType_name_1 = "InterfaceIR"
+	_InterfaceType_name_2 = "InterfaceMotionPlus"
+	_InterfaceType_name_3 = "InterfaceNunchuk"
+	_InterfaceType_name_4 = "InterfaceClassicController"
+	_InterfaceType_name_5 = "InterfaceBalanceBoard"
+	_InterfaceType_name_6 = "InterfaceProController"
+	_InterfaceType_name_7 = "InterfaceDrums"
+	_InterfaceType_name_8 = "InterfaceGuitar"
+	_InterfaceType_name_9 = "InterfaceAll"
+)
 
-var _InterfaceType_map = map[InterfaceType]string{
-	1:     _InterfaceType_name[0:13],
-	2:     _InterfaceType_name[13:27],
-	4:     _InterfaceType_name[27:38],
-	256:   _InterfaceType_name[38:57],
-	512:   _InterfaceType_name[57:73],
-	1024:  _InterfaceType_name[73:99],
-	2048:  _InterfaceType_name[99:120],
-	4096:  _InterfaceType_name[120:142],
-	8192:  _InterfaceType_name[142:156],
-	16384: _InterfaceType_name[156:171],
-	32519: _InterfaceType_name[171:183],
-	65536: _InterfaceType_name[183:200],
-}
+var (
+	_InterfaceType_index_0 = [...]uint8{0, 13, 27}
+)
 
 func (i InterfaceType) String() string {
-	if str, ok := _InterfaceType_map[i]; ok {
-		return str
+	switch {
+	case 1 <= i && i <= 2:
+		i -= 1
+		return _InterfaceType_name_0[_InterfaceType_index_0[i]:_InterfaceType_index_0[i+1]]
+	case i == 4:
+		return _InterfaceType_name_1
+	case i == 256:
+		return _InterfaceType_name_2
+	case i == 512:
+		return _InterfaceType_name_3
+	case i == 1024:
+		return _InterfaceType_name_4
+	case i == 2048:
+		return _InterfaceType_name_5
+	case i == 4096:
+		return _InterfaceType_name_6
+	case i == 8192:
+		return _InterfaceType_name_7
+	case i == 16384:
+		return _InterfaceType_name_8
+	case i == 32519:
+		return _InterfaceType_name_9
+	default:
+		return "InterfaceType(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
-	return "InterfaceType(" + strconv.FormatInt(int64(i), 10) + ")"
 }
 func _() {
 	// An "invalid array index" compiler error signifies that the constant values have changed.

@@ -9,7 +9,6 @@ import "C"
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"io"
 	"iter"
 	"os"
@@ -64,8 +63,6 @@ const (
 		InterfaceProController |
 		InterfaceDrums |
 		InterfaceGuitar
-	// Special flag which causes the interfaces to be opened writable
-	InterfaceWritable InterfaceType = 0x010000
 )
 
 // Name returns the original name of that interface.
@@ -144,17 +141,6 @@ const (
 	Led4
 )
 
-type Interface struct {
-	// Type of interface, may not be bit-or'ed
-	Type InterfaceType
-	// Device node as /dev/input/eventX or ""
-	node string
-	// Open file or nil
-	fd *os.File
-	// Temporary state during device detection
-	available bool
-}
-
 // Device describes the communication with a single device. That is, you
 // create one for each device you use. All sub-interfaces are opened on this
 // object.
@@ -169,7 +155,7 @@ type Device struct {
 	umon *udev.Monitor
 
 	// open interfaces
-	ifs map[InterfaceType]*Interface
+	ifs map[InterfaceType]Interface
 	//  device type attribute
 	devtypeAttr string
 	//  extension attribute
@@ -243,7 +229,7 @@ func newDeviceFromUdev(dev *udev.Device) (*Device, error) {
 	if err != nil {
 		return nil, err
 	}
-	d.ifs = make(map[InterfaceType]*Interface)
+	d.ifs = make(map[InterfaceType]Interface)
 	if err := d.readNodes(); err != nil {
 		syscall.Close(d.efd)
 		return nil, err
@@ -277,9 +263,7 @@ func (dev *Device) readNodes() error {
 		return err
 	}
 
-	for _, i := range dev.ifs {
-		i.available = false
-	}
+	available := make(map[InterfaceType]struct{})
 
 	// The returned list is sorted. So we first get an inputXY entry,
 	// possibly followed by the inputXY/eventXY entry. We remember the type
@@ -318,16 +302,14 @@ func (dev *Device) readNodes() error {
 					continue
 				}
 				if iff, ok := dev.ifs[tif]; ok {
-					if iff.node == node {
-						iff.available = true
+					if iff.Node() == node {
+						available[tif] = struct{}{}
 					} else {
 						delete(dev.ifs, tif)
 					}
 				} else {
-					dev.ifs[tif] = &Interface{
-						node:      node,
-						available: true,
-					}
+					dev.ifs[tif] = dev.newInterface(tif, node)
+					available[tif] = struct{}{}
 				}
 			}
 		case "leds":
@@ -348,14 +330,14 @@ func (dev *Device) readNodes() error {
 		}
 	}
 
-	//  close no longer available ifaces
-	ifs := InterfaceType(0)
-	for iname, iff := range dev.ifs {
-		if !iff.available {
-			ifs |= iname
+	// close no longer available ifaces
+	cin := InterfaceType(0)
+	for tif := range dev.ifs {
+		if _, ok := available[tif]; !ok {
+			cin |= tif
 		}
 	}
-	dev.closeInterface(ifs)
+	dev.closeInterface(cin)
 
 	return nil
 }
@@ -372,7 +354,7 @@ func (dev *Device) CloseInterfaces(ifaces InterfaceType) {
 	}
 
 	for iface := range (ifaces & (InterfaceCore | InterfaceProController)).iter() {
-		if iff, ok := dev.ifs[iface]; ok && iff.fd == dev.rumbleFile {
+		if iff, ok := dev.ifs[iface]; ok && iff.FD() == dev.rumbleFile {
 			dev.rumbleID = -1
 			dev.rumbleFile = nil
 			break
@@ -386,12 +368,12 @@ func (dev *Device) closeInterface(tif InterfaceType) {
 	if !ok {
 		return
 	}
-	if iff.fd == nil {
+	if iff.FD() == nil {
 		return
 	}
 
-	syscall.EpollCtl(dev.efd, syscall.EPOLL_CTL_DEL, int(iff.fd.Fd()), nil)
-	iff.fd.Close()
+	syscall.EpollCtl(dev.efd, syscall.EPOLL_CTL_DEL, int(iff.FD().Fd()), nil)
+	iff.FD().Close()
 	delete(dev.ifs, tif)
 }
 
@@ -473,8 +455,7 @@ func (dev *Device) Watch(hotplug bool) error {
 // kernel removes the interface or on error conditions. You always get an
 // EventWatch event which you should react on. This is returned
 // regardless whether Watch() was enabled or not.
-func (dev *Device) OpenInterfaces(ifaces InterfaceType) error {
-	wr := ifaces&InterfaceWritable > 0
+func (dev *Device) OpenInterfaces(ifaces InterfaceType, wr bool) error {
 	ifaces &= InterfaceAll
 	ifaces &= ^dev.Opened()
 	if ifaces == 0 {
@@ -488,7 +469,7 @@ func (dev *Device) OpenInterfaces(ifaces InterfaceType) error {
 	}
 
 	for iface := range (ifaces & (InterfaceCore | InterfaceProController)).iter() {
-		if err := dev.uploadRumble(dev.ifs[iface].fd); err != nil {
+		if err := dev.uploadRumble(dev.ifs[iface].FD()); err != nil {
 			return err
 		}
 	}
@@ -518,38 +499,7 @@ func (dev *Device) openInterface(tif InterfaceType, wr bool) error {
 	if !ok {
 		return os.ErrNotExist
 	}
-
-	if iff.fd != nil {
-		return nil
-	}
-
-	flags := syscall.O_NONBLOCK | syscall.O_CLOEXEC
-	if wr {
-		flags |= os.O_RDWR
-	}
-	fd, err := os.OpenFile(iff.node, flags, 0)
-	if err != nil {
-		return err
-	}
-
-	name, err := devname(fd)
-	if err != nil {
-		return err
-	}
-	if name != tif.Name() {
-		return fmt.Errorf("device does not hold correct name: expected %q, got %q", tif.Name(), name)
-	}
-
-	var ep syscall.EpollEvent
-	ep.Events = syscall.EPOLLIN
-	ep.Fd = int32(fd.Fd())
-	if err := syscall.EpollCtl(dev.efd, syscall.EPOLL_CTL_ADD, int(fd.Fd()), &ep); err != nil {
-		fd.Close()
-		return err
-	}
-
-	iff.fd = fd
-	return nil
+	return iff.open(wr)
 }
 
 // Upload the generic rumble event to the device. This may later be used for
@@ -563,7 +513,7 @@ func (dev *Device) uploadRumble(fd *os.File) error {
 	rmb := (*C.struct_ff_rumble_effect)(unsafe.Pointer(&effect.u))
 	rmb.strong_magnitude = 1
 
-	if _, _, err := syscall.Syscall(syscall.SYS_IOCTL, fd.Fd(), C.EVIOCSFF, uintptr(unsafe.Pointer(&effect))); err != 0 {
+	if err := ioctl(fd.Fd(), C.EVIOCSFF, uintptr(unsafe.Pointer(&effect))); err != nil {
 		return err
 	}
 	dev.rumbleID = int(effect.id)
@@ -580,7 +530,7 @@ func (dev *Device) uploadRumble(fd *os.File) error {
 func (dev *Device) Opened() InterfaceType {
 	var ifaces InterfaceType
 	for name, iff := range dev.ifs {
-		if iff.fd != nil {
+		if iff.FD() != nil {
 			ifaces |= name
 		}
 	}
@@ -622,7 +572,6 @@ func (dev *Device) Poll() (Event, bool, error) {
 		return nil, false, err
 	}
 	for _, pollev := range ep[:n] {
-		fmt.Print("--got event\n")
 		ev, err := dev.dispatchEvent(pollev.Fd, pollev.Events)
 		if err != nil {
 			return nil, false, err

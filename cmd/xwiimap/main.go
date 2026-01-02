@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/friedelschoen/go-xwiimote"
 	"github.com/friedelschoen/go-xwiimote/pkg/vinput"
@@ -320,7 +321,7 @@ func loadMapping(r io.Reader) map[xwiimote.Key]vinput.Key {
 
 func watchDevice(dev *xwiimote.Device, mapping map[xwiimote.Key]vinput.Key) {
 	fmt.Printf("new device: %s\n", dev.String())
-	if err := dev.OpenInterfaces(xwiimote.InterfaceCore); err != nil {
+	if err := dev.OpenInterfaces(xwiimote.InterfaceCore, false); err != nil {
 		fmt.Fprintf(os.Stderr, "error: unable to open device: %s", err)
 	}
 
@@ -369,6 +370,7 @@ func main() {
 			log.Printf("error while polling: %v\n", err)
 			continue
 		}
+		time.Sleep(100 * time.Millisecond)
 		watchDevice(dev, mapping)
 	}
 }
