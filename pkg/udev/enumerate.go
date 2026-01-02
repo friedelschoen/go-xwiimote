@@ -145,7 +145,7 @@ func (e *Enumerate) AddSyspath(syspath string) (err error) {
 	return
 }
 
-// DeviceSyspathIterator returns an Iterator over the device syspaths matching the filter, sorted in dependency order.
+// Devices returns an Iterator over the device syspaths matching the filter, sorted in dependency order.
 // The Iterator is using the github.com/jkeiser/iter package.
 // Values are returned as an interface{} and should be cast to string.
 func (e *Enumerate) Devices() (it iter.Seq[string], err error) {
@@ -163,10 +163,10 @@ func (e *Enumerate) Devices() (it iter.Seq[string], err error) {
 	}), nil
 }
 
-// SubsystemSyspaths returns an Iterator over the subsystem syspaths matching the filter, sorted in dependency order.
+// Subsystems returns an Iterator over the subsystem syspaths matching the filter, sorted in dependency order.
 // The Iterator is using the github.com/jkeiser/iter package.
 // Values are returned as an interface{} and should be cast to string.
-func (e *Enumerate) SubsystemSyspaths() (it iter.Seq[string], err error) {
+func (e *Enumerate) Subsystems() (it iter.Seq[string], err error) {
 	e.lock()
 	defer e.unlock()
 	if C.udev_enumerate_scan_subsystems(e.ptr) < 0 {

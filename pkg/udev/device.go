@@ -110,9 +110,7 @@ func (d *Device) IsInitialized() bool {
 	return C.udev_device_get_is_initialized(d.ptr) != 0
 }
 
-// DevlinkIterator returns an Iterator over the device links pointing to the device file of the udev device.
-// The Iterator is using the github.com/jkeiser/iter package.
-// Values are returned as an interface{} and should be cast to string.
+// Devlinks returns an Iterator over the device links pointing to the device file of the udev device.
 func (d *Device) Devlinks() iter.Seq[string] {
 	return enumerateName(&d.udevContext, func() *C.struct_udev_list_entry {
 		d.lock()
@@ -122,10 +120,7 @@ func (d *Device) Devlinks() iter.Seq[string] {
 
 }
 
-// PropertyIterator returns an Iterator over the key/value device properties of the udev device.
-// The Iterator is using the github.com/jkeiser/iter package.
-// Values are returned as an interface{} and should be cast to []string,
-// which will have length 2 and represent a Key/Value pair.
+// Properties returns an Iterator over the key/value device properties of the udev device.
 func (d *Device) Properties() iter.Seq2[string, string] {
 	return enumerateNameValue(&d.udevContext, func() *C.struct_udev_list_entry {
 		d.lock()
@@ -134,9 +129,7 @@ func (d *Device) Properties() iter.Seq2[string, string] {
 	})
 }
 
-// TagIterator returns an Iterator over the tags attached to the udev device.
-// The Iterator is using the github.com/jkeiser/iter package.
-// Values are returned as an interface{} and should be cast to string.
+// Tags returns an Iterator over the tags attached to the udev device.
 func (d *Device) Tags() iter.Seq[string] {
 	return enumerateName(&d.udevContext, func() *C.struct_udev_list_entry {
 		d.lock()
@@ -145,21 +138,8 @@ func (d *Device) Tags() iter.Seq[string] {
 	})
 }
 
-// Sysattrs returns a Set with the systems attributes of the udev device.
-func (d *Device) Sysattrs() (r map[string]struct{}) {
-	d.lock()
-	defer d.unlock()
-	r = make(map[string]struct{})
-	for l := C.udev_device_get_sysattr_list_entry(d.ptr); l != nil; l = C.udev_list_entry_get_next(l) {
-		r[C.GoString(C.udev_list_entry_get_name(l))] = struct{}{}
-	}
-	return
-}
-
-// SysattrIterator returns an Iterator over the systems attributes of the udev device.
-// The Iterator is using the github.com/jkeiser/iter package.
-// Values are returned as an interface{} and should be cast to string.
-func (d *Device) SysattrIterator() iter.Seq[string] {
+// Sysattrs returns an Iterator over the systems attributes of the udev device.
+func (d *Device) Sysattrs() iter.Seq[string] {
 	return enumerateName(&d.udevContext, func() *C.struct_udev_list_entry {
 		d.lock()
 		defer d.unlock()

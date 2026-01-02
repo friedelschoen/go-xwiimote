@@ -196,9 +196,7 @@ type EventMotionPlus struct {
 // Y, A, B, TR, TL, ZR, ZL, THUMBL, THUMBR.
 // Payload type is struct xwii_event_key.
 type EventProControllerKey struct {
-	commonEvent
-	Code  Key
-	State KeyState
+	EventKey
 }
 
 // EventProControllerMove provides movement of analog sticks on the pro-controller and is
@@ -232,9 +230,7 @@ type EventWatch struct {
 // Valid buttons include: LEFT, RIGHT, UP, DOWN, PLUS, MINUS, HOME, X,
 // Y, A, B, TR, TL, ZR, ZL.
 type EventClassicControllerKey struct {
-	commonEvent
-	Code  Key
-	State KeyState
+	EventKey
 }
 
 // EventClassicControllerMove provides Classic Controller movement events.
@@ -260,9 +256,7 @@ type EventClassicControllerMove struct {
 // core-buttons).
 // Valid buttons include: C, Z
 type EventNunchukKey struct {
-	commonEvent
-	Code  Key
-	State KeyState
+	EventKey
 }
 
 // EventNunchukMove provides Nunchuk movement events.
@@ -280,9 +274,7 @@ type EventNunchukMove struct {
 // Button events for drums controllers. Valid buttons are PLUS and MINUS
 // for the +/- buttons on the center-bar.
 type EventDrumsKey struct {
-	commonEvent
-	Code  Key
-	State KeyState
+	EventKey
 }
 
 // EventDrumsMove provides Drums movement event
@@ -305,9 +297,7 @@ type EventDrumsMove struct {
 // FRET_FAR_UP, FRET_UP, FRET_MID, FRET_LOW, FRET_FAR_LOW for fret
 // activity and STRUM_BAR_UP and STRUM_BAR_LOW for the strum bar.
 type EventGuitarKey struct {
-	commonEvent
-	Code  Key
-	State KeyState
+	EventKey
 }
 
 // EventGuitarMove provides Guitar movement events.
@@ -335,21 +325,21 @@ func (dev *Device) readUmon(pollEv uint32) (Event, error) {
 	remove := false
 	path := dev.dev.Syspath()
 
-	/* try to merge as many hotplug events as possible */
+	// try to merge as many hotplug events as possible
 	for {
 		ndev := dev.umon.ReceiveDevice()
 		if ndev == nil {
 			break
 		}
 
-		/* We are interested in three kinds of events:
-		*  1) "change" events on the main HID device notify
-		*     us of device-detection events.
-		*  1) "remove" events on the main HID device notify
-		*     us of device-removal.
-		*  3) "add"/"remove" events on input events (not
-		*     the evdev events with "devnode") notify us
-		*     of extension changes. */
+		// We are interested in three kinds of events:
+		// 1) "change" events on the main HID device notify
+		//    us of device-detection events.
+		// 2) "remove" events on the main HID device notify
+		//    us of device-removal.
+		// 3) "add"/"remove" events on input events (not
+		//    the evdev events with "devnode") notify us
+		//    of extension changes. */
 
 		act := ndev.Action()
 		npath := ndev.Syspath()
@@ -368,7 +358,7 @@ func (dev *Device) readUmon(pollEv uint32) (Event, error) {
 		}
 	}
 
-	/* notify caller of removals via special event */
+	// notify caller of removals via special event
 	if remove {
 		dev.readNodes()
 		return &EventGone{
@@ -378,7 +368,7 @@ func (dev *Device) readUmon(pollEv uint32) (Event, error) {
 		}, nil
 	}
 
-	/* notify caller via generic hotplug event */
+	// notify caller via generic hotplug event
 	if hotplug {
 		dev.readNodes()
 		return &EventWatch{
@@ -391,7 +381,7 @@ func (dev *Device) readUmon(pollEv uint32) (Event, error) {
 	return nil, nil
 }
 
-func read_event(fd *os.File) (*C.struct_input_event, error) {
+func readEvent(fd *os.File) (*C.struct_input_event, error) {
 	var ev C.struct_input_event
 	buf := unsafe.Slice((*byte)(unsafe.Pointer(&ev)), unsafe.Sizeof(ev))
 
@@ -411,7 +401,7 @@ func read_event(fd *os.File) (*C.struct_input_event, error) {
 func (dev *Device) readCore() (Event, error) {
 	fd := dev.ifs[InterfaceCore].fd
 try_again:
-	input, err := read_event(fd)
+	input, err := readEvent(fd)
 	if err != nil {
 		dev.closeInterface(InterfaceCore)
 		dev.readNodes()
@@ -467,7 +457,7 @@ try_again:
 func (dev *Device) readAccel() (Event, error) {
 	fd := dev.ifs[InterfaceAccel].fd
 try_again:
-	input, err := read_event(fd)
+	input, err := readEvent(fd)
 	if err != nil {
 		dev.closeInterface(InterfaceAccel)
 		dev.readNodes()
@@ -478,8 +468,8 @@ try_again:
 	}
 
 	if input._type == C.EV_SYN {
-		dev.accel_cache.timestamp = cTime(input.time)
-		return &dev.accel_cache, nil
+		dev.accelCache.timestamp = cTime(input.time)
+		return &dev.accelCache, nil
 	}
 
 	if input._type != C.EV_ABS {
@@ -488,11 +478,11 @@ try_again:
 
 	switch input.code {
 	case C.ABS_RX:
-		dev.accel_cache.Accel.X = int32(input.value)
+		dev.accelCache.Accel.X = int32(input.value)
 	case C.ABS_RY:
-		dev.accel_cache.Accel.Y = int32(input.value)
+		dev.accelCache.Accel.Y = int32(input.value)
 	case C.ABS_RZ:
-		dev.accel_cache.Accel.Z = int32(input.value)
+		dev.accelCache.Accel.Z = int32(input.value)
 	}
 	goto try_again
 }
@@ -500,7 +490,7 @@ try_again:
 func (dev *Device) readIR() (Event, error) {
 	fd := dev.ifs[InterfaceIR].fd
 try_again:
-	input, err := read_event(fd)
+	input, err := readEvent(fd)
 	if err != nil {
 		dev.closeInterface(InterfaceIR)
 		dev.readNodes()
@@ -511,8 +501,8 @@ try_again:
 	}
 
 	if input._type == C.EV_SYN {
-		dev.ir_cache.timestamp = cTime(input.time)
-		return &dev.ir_cache, nil
+		dev.irCache.timestamp = cTime(input.time)
+		return &dev.irCache, nil
 	}
 
 	if input._type != C.EV_ABS {
@@ -521,21 +511,21 @@ try_again:
 
 	switch input.code {
 	case C.ABS_HAT0X:
-		dev.ir_cache.Slots[0].X = int32(input.value)
+		dev.irCache.Slots[0].X = int32(input.value)
 	case C.ABS_HAT0Y:
-		dev.ir_cache.Slots[0].Y = int32(input.value)
+		dev.irCache.Slots[0].Y = int32(input.value)
 	case C.ABS_HAT1X:
-		dev.ir_cache.Slots[1].X = int32(input.value)
+		dev.irCache.Slots[1].X = int32(input.value)
 	case C.ABS_HAT1Y:
-		dev.ir_cache.Slots[1].Y = int32(input.value)
+		dev.irCache.Slots[1].Y = int32(input.value)
 	case C.ABS_HAT2X:
-		dev.ir_cache.Slots[2].X = int32(input.value)
+		dev.irCache.Slots[2].X = int32(input.value)
 	case C.ABS_HAT2Y:
-		dev.ir_cache.Slots[2].Y = int32(input.value)
+		dev.irCache.Slots[2].Y = int32(input.value)
 	case C.ABS_HAT3X:
-		dev.ir_cache.Slots[3].X = int32(input.value)
+		dev.irCache.Slots[3].X = int32(input.value)
 	case C.ABS_HAT3Y:
-		dev.ir_cache.Slots[3].Y = int32(input.value)
+		dev.irCache.Slots[3].Y = int32(input.value)
 	}
 	goto try_again
 }
@@ -543,7 +533,7 @@ try_again:
 func (dev *Device) readMP() (Event, error) {
 	fd := dev.ifs[InterfaceMotionPlus].fd
 try_again:
-	input, err := read_event(fd)
+	input, err := readEvent(fd)
 	if err != nil {
 		dev.closeInterface(InterfaceMotionPlus)
 		dev.readNodes()
@@ -554,28 +544,28 @@ try_again:
 	}
 
 	if input._type == C.EV_SYN {
-		dev.mp_cache.timestamp = cTime(input.time)
+		dev.mpCache.timestamp = cTime(input.time)
 
-		dev.mp_cache.Speed.X -= dev.mp_normalizer.X / 100
-		dev.mp_cache.Speed.Y -= dev.mp_normalizer.Y / 100
-		dev.mp_cache.Speed.Z -= dev.mp_normalizer.Z / 100
-		if dev.mp_cache.Speed.X > 0 {
-			dev.mp_normalizer.X += dev.mp_normalize_factor
+		dev.mpCache.Speed.X -= dev.mpNormalizer.X / 100
+		dev.mpCache.Speed.Y -= dev.mpNormalizer.Y / 100
+		dev.mpCache.Speed.Z -= dev.mpNormalizer.Z / 100
+		if dev.mpCache.Speed.X > 0 {
+			dev.mpNormalizer.X += dev.mpNormaizeFactor
 		} else {
-			dev.mp_normalizer.X -= dev.mp_normalize_factor
+			dev.mpNormalizer.X -= dev.mpNormaizeFactor
 		}
-		if dev.mp_cache.Speed.Y > 0 {
-			dev.mp_normalizer.Y += dev.mp_normalize_factor
+		if dev.mpCache.Speed.Y > 0 {
+			dev.mpNormalizer.Y += dev.mpNormaizeFactor
 		} else {
-			dev.mp_normalizer.Y -= dev.mp_normalize_factor
+			dev.mpNormalizer.Y -= dev.mpNormaizeFactor
 		}
-		if dev.mp_cache.Speed.Z > 0 {
-			dev.mp_normalizer.Z += dev.mp_normalize_factor
+		if dev.mpCache.Speed.Z > 0 {
+			dev.mpNormalizer.Z += dev.mpNormaizeFactor
 		} else {
-			dev.mp_normalizer.Z -= dev.mp_normalize_factor
+			dev.mpNormalizer.Z -= dev.mpNormaizeFactor
 		}
 
-		return &dev.mp_cache, nil
+		return &dev.mpCache, nil
 	}
 
 	if input._type != C.EV_ABS {
@@ -584,11 +574,11 @@ try_again:
 
 	switch input.code {
 	case C.ABS_RX:
-		dev.mp_cache.Speed.X = int32(input.value)
+		dev.mpCache.Speed.X = int32(input.value)
 	case C.ABS_RY:
-		dev.mp_cache.Speed.Y = int32(input.value)
+		dev.mpCache.Speed.Y = int32(input.value)
 	case C.ABS_RZ:
-		dev.mp_cache.Speed.Z = int32(input.value)
+		dev.mpCache.Speed.Z = int32(input.value)
 	}
 
 	goto try_again
@@ -597,7 +587,7 @@ try_again:
 func (dev *Device) readNunchuck() (Event, error) {
 	fd := dev.ifs[InterfaceNunchuk].fd
 try_again:
-	input, err := read_event(fd)
+	input, err := readEvent(fd)
 	if err != nil {
 		dev.closeInterface(InterfaceNunchuk)
 		dev.readNodes()
@@ -629,19 +619,19 @@ try_again:
 	} else if input._type == C.EV_ABS {
 		switch input.code {
 		case C.ABS_HAT0X:
-			dev.nunchuk_cache.Stick.X = int32(input.value)
+			dev.nunchukCache.Stick.X = int32(input.value)
 		case C.ABS_HAT0Y:
-			dev.nunchuk_cache.Stick.Y = int32(input.value)
+			dev.nunchukCache.Stick.Y = int32(input.value)
 		case C.ABS_RX:
-			dev.nunchuk_cache.Accel.X = int32(input.value)
+			dev.nunchukCache.Accel.X = int32(input.value)
 		case C.ABS_RY:
-			dev.nunchuk_cache.Accel.Y = int32(input.value)
+			dev.nunchukCache.Accel.Y = int32(input.value)
 		case C.ABS_RZ:
-			dev.nunchuk_cache.Accel.Z = int32(input.value)
+			dev.nunchukCache.Accel.Z = int32(input.value)
 		}
 	} else if input._type == C.EV_SYN {
-		dev.nunchuk_cache.timestamp = cTime(input.time)
-		return &dev.nunchuk_cache, nil
+		dev.nunchukCache.timestamp = cTime(input.time)
+		return &dev.nunchukCache, nil
 	}
 
 	goto try_again
@@ -650,7 +640,7 @@ try_again:
 func (dev *Device) readClassic() (Event, error) {
 	fd := dev.ifs[InterfaceClassicController].fd
 try_again:
-	input, err := read_event(fd)
+	input, err := readEvent(fd)
 	if err != nil {
 		dev.closeInterface(InterfaceClassicController)
 		dev.readNodes()
@@ -709,21 +699,21 @@ try_again:
 	} else if input._type == C.EV_ABS {
 		switch input.code {
 		case C.ABS_HAT1X:
-			dev.classic_cache.StickLeft.X = int32(input.value)
+			dev.classicCache.StickLeft.X = int32(input.value)
 		case C.ABS_HAT1Y:
-			dev.classic_cache.StickLeft.Y = int32(input.value)
+			dev.classicCache.StickLeft.Y = int32(input.value)
 		case C.ABS_HAT2X:
-			dev.classic_cache.StickRight.X = int32(input.value)
+			dev.classicCache.StickRight.X = int32(input.value)
 		case C.ABS_HAT2Y:
-			dev.classic_cache.StickRight.Y = int32(input.value)
+			dev.classicCache.StickRight.Y = int32(input.value)
 		case C.ABS_HAT3X:
-			dev.classic_cache.ShoulderLeft = int32(input.value)
+			dev.classicCache.ShoulderLeft = int32(input.value)
 		case C.ABS_HAT3Y:
-			dev.classic_cache.ShoulderRight = int32(input.value)
+			dev.classicCache.ShoulderRight = int32(input.value)
 		}
 	} else if input._type == C.EV_SYN {
-		dev.classic_cache.timestamp = cTime(input.time)
-		return &dev.classic_cache, nil
+		dev.classicCache.timestamp = cTime(input.time)
+		return &dev.classicCache, nil
 	}
 
 	goto try_again
@@ -732,7 +722,7 @@ try_again:
 func (dev *Device) readBBoard() (Event, error) {
 	fd := dev.ifs[InterfaceBalanceBoard].fd
 try_again:
-	input, err := read_event(fd)
+	input, err := readEvent(fd)
 	if err != nil {
 		dev.closeInterface(InterfaceBalanceBoard)
 		dev.readNodes()
@@ -743,8 +733,8 @@ try_again:
 	}
 
 	if input._type == C.EV_SYN {
-		dev.bboard_cache.timestamp = cTime(input.time)
-		return &dev.bboard_cache, nil
+		dev.bboardCache.timestamp = cTime(input.time)
+		return &dev.bboardCache, nil
 	}
 
 	if input._type != C.EV_ABS {
@@ -753,13 +743,13 @@ try_again:
 
 	switch input.code {
 	case C.ABS_HAT0X:
-		dev.bboard_cache.Weights[0] = int32(input.value)
+		dev.bboardCache.Weights[0] = int32(input.value)
 	case C.ABS_HAT0Y:
-		dev.bboard_cache.Weights[1] = int32(input.value)
+		dev.bboardCache.Weights[1] = int32(input.value)
 	case C.ABS_HAT1X:
-		dev.bboard_cache.Weights[2] = int32(input.value)
+		dev.bboardCache.Weights[2] = int32(input.value)
 	case C.ABS_HAT1Y:
-		dev.bboard_cache.Weights[3] = int32(input.value)
+		dev.bboardCache.Weights[3] = int32(input.value)
 	}
 
 	goto try_again
@@ -768,7 +758,7 @@ try_again:
 func (dev *Device) readPro() (Event, error) {
 	fd := dev.ifs[InterfaceProController].fd
 try_again:
-	input, err := read_event(fd)
+	input, err := readEvent(fd)
 	if err != nil {
 		dev.closeInterface(InterfaceProController)
 		dev.readNodes()
@@ -831,17 +821,17 @@ try_again:
 	} else if input._type == C.EV_ABS {
 		switch input.code {
 		case C.ABS_X:
-			dev.pro_cache.Sticks[0].X = int32(input.value)
+			dev.proCache.Sticks[0].X = int32(input.value)
 		case C.ABS_Y:
-			dev.pro_cache.Sticks[0].Y = int32(input.value)
+			dev.proCache.Sticks[0].Y = int32(input.value)
 		case C.ABS_RX:
-			dev.pro_cache.Sticks[1].X = int32(input.value)
+			dev.proCache.Sticks[1].X = int32(input.value)
 		case C.ABS_RY:
-			dev.pro_cache.Sticks[1].Y = int32(input.value)
+			dev.proCache.Sticks[1].Y = int32(input.value)
 		}
 	} else if input._type == C.EV_SYN {
-		dev.pro_cache.timestamp = cTime(input.time)
-		return &dev.pro_cache, nil
+		dev.proCache.timestamp = cTime(input.time)
+		return &dev.proCache, nil
 	}
 
 	goto try_again
@@ -850,7 +840,7 @@ try_again:
 func (dev *Device) readDrums() (Event, error) {
 	fd := dev.ifs[InterfaceDrums].fd
 try_again:
-	input, err := read_event(fd)
+	input, err := readEvent(fd)
 	if err != nil {
 		dev.closeInterface(InterfaceDrums)
 		dev.readNodes()
@@ -883,27 +873,27 @@ try_again:
 	} else if input._type == C.EV_ABS {
 		switch input.code {
 		case C.ABS_X:
-			dev.drums_cache.Pad.X = int32(input.value)
+			dev.drumsCache.Pad.X = int32(input.value)
 		case C.ABS_Y:
-			dev.drums_cache.Pad.Y = int32(input.value)
+			dev.drumsCache.Pad.Y = int32(input.value)
 		case C.ABS_CYMBAL_LEFT:
-			dev.drums_cache.CymbalLeft = int32(input.value)
+			dev.drumsCache.CymbalLeft = int32(input.value)
 		case C.ABS_CYMBAL_RIGHT:
-			dev.drums_cache.CymbalRight = int32(input.value)
+			dev.drumsCache.CymbalRight = int32(input.value)
 		case C.ABS_TOM_LEFT:
-			dev.drums_cache.TomLeft = int32(input.value)
+			dev.drumsCache.TomLeft = int32(input.value)
 		case C.ABS_TOM_RIGHT:
-			dev.drums_cache.TomRight = int32(input.value)
+			dev.drumsCache.TomRight = int32(input.value)
 		case C.ABS_TOM_FAR_RIGHT:
-			dev.drums_cache.TomFarRight = int32(input.value)
+			dev.drumsCache.TomFarRight = int32(input.value)
 		case C.ABS_BASS:
-			dev.drums_cache.Bass = int32(input.value)
+			dev.drumsCache.Bass = int32(input.value)
 		case C.ABS_HI_HAT:
-			dev.drums_cache.HiHat = int32(input.value)
+			dev.drumsCache.HiHat = int32(input.value)
 		}
 	} else if input._type == C.EV_SYN {
-		dev.drums_cache.timestamp = cTime(input.time)
-		return &dev.drums_cache, nil
+		dev.drumsCache.timestamp = cTime(input.time)
+		return &dev.drumsCache, nil
 	}
 
 	goto try_again
@@ -912,7 +902,7 @@ try_again:
 func (dev *Device) readGuitar() (Event, error) {
 	fd := dev.ifs[InterfaceGuitar].fd
 try_again:
-	input, err := read_event(fd)
+	input, err := readEvent(fd)
 	if err != nil {
 		dev.closeInterface(InterfaceGuitar)
 		dev.readNodes()
@@ -959,17 +949,17 @@ try_again:
 	} else if input._type == C.EV_ABS {
 		switch input.code {
 		case C.ABS_X:
-			dev.guitar_cache.Stick.X = int32(input.value)
+			dev.guitarCache.Stick.X = int32(input.value)
 		case C.ABS_Y:
-			dev.guitar_cache.Stick.Y = int32(input.value)
+			dev.guitarCache.Stick.Y = int32(input.value)
 		case C.ABS_WHAMMY_BAR:
-			dev.guitar_cache.WhammyBar = int32(input.value)
+			dev.guitarCache.WhammyBar = int32(input.value)
 		case C.ABS_FRET_BOARD:
-			dev.guitar_cache.FretBar = int32(input.value)
+			dev.guitarCache.FretBar = int32(input.value)
 		}
 	} else if input._type == C.EV_SYN {
-		dev.guitar_cache.timestamp = cTime(input.time)
-		return &dev.guitar_cache, nil
+		dev.guitarCache.timestamp = cTime(input.time)
+		return &dev.guitarCache, nil
 	}
 
 	goto try_again
