@@ -1,46 +1,22 @@
 package udev
 
-/*
-  #cgo LDFLAGS: -ludev
-  #include <libudev.h>
-  #include <linux/types.h>
-  #include <stdlib.h>
-	#include <linux/kdev_t.h>
-*/
+// #cgo pkg-config: libudev
+// #include <libudev.h>
 import "C"
 import (
-	"context"
 	"errors"
-	"fmt"
-	"syscall"
-
-	"golang.org/x/sys/unix"
 )
 
 // Monitor is an opaque object handling an event source
 type Monitor struct {
+	udevContext
 	ptr *C.struct_udev_monitor
-	u   *Udev
-}
-
-const (
-	maxEpollEvents = 32
-	epollTimeout   = 1000
-)
-
-// Lock the udev context
-func (m *Monitor) lock() {
-	m.u.m.Lock()
-}
-
-// Unlock the udev context
-func (m *Monitor) unlock() {
-	m.u.m.Unlock()
 }
 
 // Unref the monitor
 func monitorUnref(m *Monitor) {
 	C.udev_monitor_unref(m.ptr)
+	C.udev_unref(m.udevPtr)
 }
 
 // GetFD receives a file descriptor which can be checked for rediness
@@ -63,7 +39,13 @@ func (m *Monitor) EnableReceiving() (err error) {
 func (m *Monitor) ReceiveDevice() *Device {
 	m.lock()
 	defer m.unlock()
-	return m.u.newDevice(C.udev_monitor_receive_device(m.ptr))
+	ptr := C.udev_monitor_receive_device(m.ptr)
+	if ptr == nil {
+		return nil
+	}
+	d := newDevice()
+	d.ptr = ptr
+	return d
 }
 
 // SetReceiveBufferSize sets the size of the kernel socket buffer.
@@ -139,95 +121,4 @@ func (m *Monitor) FilterRemove() (err error) {
 		err = errors.New("udev: udev_monitor_filter_remove failed")
 	}
 	return
-}
-
-// receiveDevice is a helper function receiving a device while the Mutex is locked
-func (m *Monitor) receiveDevice() (d *Device) {
-	m.lock()
-	defer m.unlock()
-	return m.u.newDevice(C.udev_monitor_receive_device(m.ptr))
-}
-
-// DeviceChan binds the udev_monitor socket to the event source and spawns a
-// goroutine. The goroutine efficiently waits on the monitor socket using epoll.
-// Data is received from the udev monitor socket and a new Device is created
-// with the data received. Pointers to the device are sent on the returned
-// channel. The function takes a context as argument, which when done will stop
-// the goroutine and close the device channel. Only socket connections with
-// uid=0 are accepted.
-func (m *Monitor) DeviceChan(ctx context.Context) (<-chan *Device, <-chan error, error) {
-
-	var event unix.EpollEvent
-	var events [maxEpollEvents]unix.EpollEvent
-
-	// Lock the context
-	m.lock()
-	defer m.unlock()
-
-	// Enable receiving
-	if C.udev_monitor_enable_receiving(m.ptr) != 0 {
-		return nil, nil, errors.New("udev: udev_monitor_enable_receiving failed")
-	}
-
-	// Set the fd to non-blocking
-	fd := C.udev_monitor_get_fd(m.ptr)
-	if e := unix.SetNonblock(int(fd), true); e != nil {
-		return nil, nil, errors.New("udev: unix.SetNonblock failed")
-	}
-
-	// Create an epoll fd
-	epfd, e := unix.EpollCreate1(0)
-	if e != nil {
-		return nil, nil, errors.New("udev: unix.EpollCreate1 failed")
-	}
-
-	// Add the fd to the epoll fd
-	event.Events = unix.EPOLLIN | unix.EPOLLET
-	event.Fd = int32(fd)
-	if e = unix.EpollCtl(epfd, unix.EPOLL_CTL_ADD, int(fd), &event); e != nil {
-		return nil, nil, errors.New("udev: unix.EpollCtl failed")
-	}
-
-	// Create the device and error channels
-	ch := make(chan *Device)
-	errorChannel := make(chan error)
-
-	// Create goroutine to epoll the fd
-	go func(fd int32) {
-		// Close the epoll fd when goroutine exits
-		defer unix.Close(epfd)
-		// Close the channel when goroutine exits
-		defer close(ch)
-		defer close(errorChannel)
-		// Loop forever
-		for {
-			// Poll the file descriptor
-			nevents, e := unix.EpollWait(epfd, events[:], epollTimeout)
-			// Ignore the EINTR error case since cancelation is performed with the
-			// context's Done() channel
-			errno, isErrno := e.(syscall.Errno)
-			if (e != nil && !isErrno) || (isErrno && errno != syscall.EINTR) {
-				errorChannel <- fmt.Errorf("Error during EpollWait: %s", errno.Error())
-				return
-			}
-			// Check for done signal
-			select {
-			case <-ctx.Done():
-				return
-			default:
-			}
-			// Process events
-			for ev := 0; ev < nevents; ev++ {
-				if events[ev].Fd == fd {
-					if (events[ev].Events & unix.EPOLLIN) != 0 {
-						for d := m.receiveDevice(); d != nil; d = m.receiveDevice() {
-							ch <- d
-						}
-					}
-				}
-			}
-		}
-	}(int32(fd))
-
-	return ch, errorChannel, nil
 }

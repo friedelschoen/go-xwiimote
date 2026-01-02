@@ -19,7 +19,7 @@ func watchDevice(dev *xwiimote.Device) {
 	}
 	defer mouse.Close()
 
-	if err := dev.Open(xwiimote.InterfaceCore | xwiimote.InterfaceIR | xwiimote.InterfaceAccel); err != nil {
+	if err := dev.OpenInterfaces(xwiimote.InterfaceCore | xwiimote.InterfaceIR | xwiimote.InterfaceAccel); err != nil {
 		log.Fatalf("error: unable to open device: %v", err)
 	}
 
@@ -78,7 +78,7 @@ func watchDevice(dev *xwiimote.Device) {
 			if x >= -340 && x < 340 && y >= -92 && y < 290 {
 				fmt.Printf("[%v] pointer at (%.2f %.2f) at %.2fm distance\n", pointer.Health, pointer.Position.X, pointer.Position.Y, pointer.Distance)
 				err := mouse.Set(int32(x), int32(y))
-				fmt.Println(err)
+				fmt.Println("err: ", err)
 			}
 		}
 	}

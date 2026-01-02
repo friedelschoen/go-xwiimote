@@ -320,7 +320,7 @@ func loadMapping(r io.Reader) map[xwiimote.Key]vinput.Key {
 
 func watchDevice(dev *xwiimote.Device, mapping map[xwiimote.Key]vinput.Key) {
 	fmt.Printf("new device: %s\n", dev.String())
-	if err := dev.Open(xwiimote.InterfaceCore); err != nil {
+	if err := dev.OpenInterfaces(xwiimote.InterfaceCore); err != nil {
 		fmt.Fprintf(os.Stderr, "error: unable to open device: %s", err)
 	}
 
@@ -330,11 +330,13 @@ func watchDevice(dev *xwiimote.Device, mapping map[xwiimote.Key]vinput.Key) {
 	}
 	defer kb.Close()
 
+	dev.Watch(true)
 	for {
 		ev, err := dev.Wait(-1)
 		if err != nil {
 			log.Printf("unable to poll event: %v\n", err)
 		}
+		fmt.Printf("%T: %+v\n", ev, ev)
 		switch ev := ev.(type) {
 		case *xwiimote.EventKey:
 			realkey, ok := mapping[ev.Code]
@@ -342,6 +344,10 @@ func watchDevice(dev *xwiimote.Device, mapping map[xwiimote.Key]vinput.Key) {
 				continue
 			}
 			kb.Key(realkey, ev.State != xwiimote.StateReleased)
+		case *xwiimote.EventGone:
+			if dev.Opened() == 0 {
+				return
+			}
 		}
 	}
 }
@@ -357,6 +363,7 @@ func main() {
 	}
 
 	for {
+		fmt.Println("waiting for devices...")
 		dev, err := monitor.Wait(-1)
 		if err != nil || dev == nil {
 			log.Printf("error while polling: %v\n", err)

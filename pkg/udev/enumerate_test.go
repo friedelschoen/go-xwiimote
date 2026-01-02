@@ -8,8 +8,7 @@ import (
 )
 
 func TestEnumerateDeviceSyspaths(t *testing.T) {
-	u := Udev{}
-	e := u.NewEnumerate()
+	e := NewEnumerate()
 	dsp, err := e.Devices()
 	if err != nil {
 		t.Fail()
@@ -19,10 +18,7 @@ func TestEnumerateDeviceSyspaths(t *testing.T) {
 	}
 }
 func ExampleEnumerate_SubsystemSyspaths() {
-
-	// Create Udev and Enumerate
-	u := Udev{}
-	e := u.NewEnumerate()
+	e := NewEnumerate()
 
 	// Enumerate all subsystem syspaths
 	dsp, _ := e.SubsystemSyspaths()
@@ -32,8 +28,7 @@ func ExampleEnumerate_SubsystemSyspaths() {
 }
 
 func TestEnumerateSubsystemSyspaths(t *testing.T) {
-	u := Udev{}
-	e := u.NewEnumerate()
+	e := NewEnumerate()
 	ssp, err := e.SubsystemSyspaths()
 	if err != nil {
 		t.Fail()
@@ -44,9 +39,7 @@ func TestEnumerateSubsystemSyspaths(t *testing.T) {
 }
 
 func ExampleEnumerate_Devices() {
-	// Create Udev and Enumerate
-	u := Udev{}
-	e := u.NewEnumerate()
+	e := NewEnumerate()
 
 	// Add some FilterAddMatchSubsystemDevtype
 	e.AddMatchSubsystem("block")
@@ -58,8 +51,7 @@ func ExampleEnumerate_Devices() {
 }
 
 func TestEnumerateDevicesWithFilter(t *testing.T) {
-	u := Udev{}
-	e := u.NewEnumerate()
+	e := NewEnumerate()
 	e.AddMatchSubsystem("block")
 	e.AddMatchIsInitialized()
 	e.AddNomatchSubsystem("mem")
@@ -72,7 +64,7 @@ func TestEnumerateDevicesWithFilter(t *testing.T) {
 		t.Fail()
 	}
 	for path := range ds {
-		d := u.NewDeviceFromSyspath(path)
+		d := NewDeviceFromSyspath(path)
 		if d.Subsystem() != "block" {
 			t.Error("Wrong subsystem")
 		}

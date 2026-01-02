@@ -6,16 +6,14 @@ import (
 )
 
 func ExampleUdev_NewDeviceFromDevnum() {
-	u := Udev{}
-	d := u.NewDeviceFromDevnum('c', MkDev(1, 8))
+	d := NewDeviceFromDevnum('c', MkDev(1, 8))
 	fmt.Println(d.Syspath())
 	// Output:
 	// /sys/devices/virtual/mem/random
 }
 
 func TestNewDeviceFromDevnum(t *testing.T) {
-	u := Udev{}
-	d := u.NewDeviceFromDevnum('c', MkDev(1, 8))
+	d := NewDeviceFromDevnum('c', MkDev(1, 8))
 	if d.Devnum().Major() != 1 {
 		t.Fail()
 	}
@@ -28,16 +26,14 @@ func TestNewDeviceFromDevnum(t *testing.T) {
 }
 
 func ExampleUdev_NewDeviceFromSyspath() {
-	u := Udev{}
-	d := u.NewDeviceFromSyspath("/sys/devices/virtual/mem/random")
+	d := NewDeviceFromSyspath("/sys/devices/virtual/mem/random")
 	fmt.Println(d.Syspath())
 	// Output:
 	// /sys/devices/virtual/mem/random
 }
 
 func TestNewDeviceFromSyspath(t *testing.T) {
-	u := Udev{}
-	d := u.NewDeviceFromSyspath("/sys/devices/virtual/mem/random")
+	d := NewDeviceFromSyspath("/sys/devices/virtual/mem/random")
 	if d.Devnum().Major() != 1 {
 		t.Fail()
 	}
@@ -50,16 +46,14 @@ func TestNewDeviceFromSyspath(t *testing.T) {
 }
 
 func ExampleUdev_NewDeviceFromSubsystemSysname() {
-	u := Udev{}
-	d := u.NewDeviceFromSubsystemSysname("mem", "random")
+	d := NewDeviceFromSubsystemSysname("mem", "random")
 	fmt.Println(d.Syspath())
 	// Output:
 	// /sys/devices/virtual/mem/random
 }
 
 func TestNewDeviceFromSubsystemSysname(t *testing.T) {
-	u := Udev{}
-	d := u.NewDeviceFromSubsystemSysname("mem", "random")
+	d := NewDeviceFromSubsystemSysname("mem", "random")
 	if d.Devnum().Major() != 1 {
 		t.Fail()
 	}
@@ -72,16 +66,14 @@ func TestNewDeviceFromSubsystemSysname(t *testing.T) {
 }
 
 func ExampleUdev_NewDeviceFromDeviceID() {
-	u := Udev{}
-	d := u.NewDeviceFromDeviceID("c1:8")
+	d := NewDeviceFromDeviceID("c1:8")
 	fmt.Println(d.Syspath())
 	// Output:
 	// /sys/devices/virtual/mem/random
 }
 
 func TestNewDeviceFromDeviceID(t *testing.T) {
-	u := Udev{}
-	d := u.NewDeviceFromDeviceID("c1:8")
+	d := NewDeviceFromDeviceID("c1:8")
 	if d.Devnum().Major() != 1 {
 		t.Fail()
 	}
@@ -94,21 +86,17 @@ func TestNewDeviceFromDeviceID(t *testing.T) {
 }
 
 func ExampleUdev_NewMonitorFromNetlink() {
-	u := Udev{}
-	_ = u.NewMonitorFromNetlink("udev")
+	_ = NewMonitorFromNetlink("udev")
 }
 
 func TestNewMonitorFromNetlink(t *testing.T) {
-	u := Udev{}
-	_ = u.NewMonitorFromNetlink("udev")
+	_ = NewMonitorFromNetlink("udev")
 }
 
 func ExampleUdev_NewEnumerate() {
-	u := Udev{}
-	_ = u.NewEnumerate()
+	_ = NewEnumerate()
 }
 
 func TestNewEnumerate(t *testing.T) {
-	u := Udev{}
-	_ = u.NewEnumerate()
+	_ = NewEnumerate()
 }

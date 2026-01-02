@@ -1,12 +1,7 @@
 package udev
 
-/*
-#cgo LDFLAGS: -ludev
-#include <libudev.h>
-#include <linux/types.h>
-#include <stdlib.h>
-#include <linux/kdev_t.h>
-*/
+// #cgo pkg-config: libudev
+// #include <libudev.h>
 import "C"
 
 import (
@@ -17,23 +12,14 @@ import (
 
 // Enumerate is an opaque struct wrapping a udev enumerate object.
 type Enumerate struct {
+	udevContext
 	ptr *C.struct_udev_enumerate
-	u   *Udev
-}
-
-// Lock the udev context
-func (e *Enumerate) lock() {
-	e.u.m.Lock()
-}
-
-// Unlock the udev context
-func (e *Enumerate) unlock() {
-	e.u.m.Unlock()
 }
 
 // Unref the Enumerate object
 func enumerateUnref(e *Enumerate) {
 	C.udev_enumerate_unref(e.ptr)
+	C.udev_unref(e.udevPtr)
 }
 
 // AddMatchSubsystem adds a filter for a subsystem of the device to include in the list.
@@ -170,7 +156,9 @@ func (e *Enumerate) Devices() (it iter.Seq[string], err error) {
 		return
 	}
 
-	return enumerateName(e, func() *C.struct_udev_list_entry {
+	return enumerateName(&e.udevContext, func() *C.struct_udev_list_entry {
+		e.lock()
+		defer e.unlock()
 		return C.udev_enumerate_get_list_entry(e.ptr)
 	}), nil
 }
@@ -186,7 +174,9 @@ func (e *Enumerate) SubsystemSyspaths() (it iter.Seq[string], err error) {
 		return
 	}
 
-	return enumerateName(e, func() *C.struct_udev_list_entry {
+	return enumerateName(&e.udevContext, func() *C.struct_udev_list_entry {
+		e.lock()
+		defer e.unlock()
 		return C.udev_enumerate_get_list_entry(e.ptr)
 	}), nil
 }
