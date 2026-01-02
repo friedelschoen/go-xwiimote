@@ -501,12 +501,24 @@ func (dev *Device) OpenInterfaces(ifaces InterfaceType) error {
 	return nil
 }
 
-func (dev *Device) openInterface(tif InterfaceType, wr bool) error {
-	// char name[256];
-	// struct epoll_event ep;
-	// unsigned int flags;
-	// int fd, err;
+func ioctl(fd, cmd, ptr uintptr) error {
+	_, _, err := syscall.Syscall(syscall.SYS_IOCTL, fd, cmd, ptr)
+	if err == 0 {
+		return nil
+	}
+	return err
+}
 
+func devname(fd *os.File) (string, error) {
+	var buffer [256]byte
+	if err := ioctl(fd.Fd(), uintptr(C.eviocgname(C.size_t(len(buffer)))), uintptr(unsafe.Pointer(&buffer[0]))); err != nil {
+		return "", err
+	}
+	length := bytes.IndexByte(buffer[:], 0)
+	return string(buffer[:length]), nil
+}
+
+func (dev *Device) openInterface(tif InterfaceType, wr bool) error {
 	iff, ok := dev.ifs[tif]
 	if !ok {
 		return os.ErrNotExist
@@ -525,12 +537,10 @@ func (dev *Device) openInterface(tif InterfaceType, wr bool) error {
 		return err
 	}
 
-	var namebuf [256]byte
-	if _, _, err := syscall.Syscall(syscall.SYS_IOCTL, fd.Fd(), uintptr(C.eviocgname(C.size_t(len(namebuf)))), uintptr(unsafe.Pointer(&namebuf[0]))); err != 0 {
+	name, err := devname(fd)
+	if err != nil {
 		return err
 	}
-	namebuflen := bytes.IndexByte(namebuf[:], 0)
-	name := string(namebuf[:namebuflen])
 	if name != tif.Name() {
 		return fmt.Errorf("device does not hold correct name: expected %q, got %q", tif.Name(), name)
 	}
