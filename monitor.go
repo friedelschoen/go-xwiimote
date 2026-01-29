@@ -1,7 +1,6 @@
 package xwiimote
 
 import (
-	"fmt"
 	"os"
 	"syscall"
 
@@ -106,13 +105,11 @@ func (mon *Monitor) Poll() (*Device, bool, error) {
 	if iter, ok := <-mon.enum; ok {
 		return iter.dev, true, iter.err
 	}
-	fmt.Print("monitoring...\n")
 
 	dev := mon.monitor.ReceiveDevice()
 	if dev == nil {
 		return nil, false, ErrPollAgain
 	}
-	fmt.Printf("act=%v, drv=%v, subs=%v\n", dev.Action(), dev.Driver(), dev.Subsystem())
 	if (dev.Action() != "" && dev.Action() != "add") || dev.Driver() != "wiimote" || dev.Subsystem() != "hid" {
 		return nil, false, ErrPollAgain
 	}

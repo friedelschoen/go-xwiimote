@@ -5,7 +5,6 @@ package xwiimote
 // #include <errno.h>
 import "C"
 import (
-	"fmt"
 	"os"
 	"path"
 	"runtime"
@@ -291,7 +290,6 @@ func (dev *Device) Watch(hotplug bool) error {
 func (dev *Device) OpenInterfaces(wr bool, ifaces ...Interface) error {
 	for _, iface := range ifaces {
 		node, ok := dev.availIfs[iface.Name()]
-		fmt.Printf("iface %q -> %q (%v)\n", iface.Name(), node, ok)
 		if !ok {
 			continue
 		}

@@ -1,7 +1,6 @@
 package xwiimote
 
 import (
-	"fmt"
 	"time"
 )
 
@@ -349,7 +348,6 @@ func (dev *Device) readUmon(pollEv uint32) (Event, error) {
 		if p := ndev.ParentWithSubsystemDevtype("hid", ""); p != nil {
 			ppath = p.Syspath()
 		}
-		fmt.Printf("-- act=%v, npath=%v, node=%v, parent=%v\n", act, npath, node, ppath)
 		if act == "change" && path == npath {
 			hotplug = true
 		} else if act == "remove" && path == npath {
