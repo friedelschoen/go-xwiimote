@@ -31,7 +31,7 @@ package irpointer
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-//go:generate stringer -type IRHealth -output stringer.go
+//go:generate morestringer -type IRHealth -output stringer.go
 
 import (
 	"math"

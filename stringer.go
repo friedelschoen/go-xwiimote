@@ -76,10 +76,11 @@ const _Key_name = "KeyLeftKeyRightKeyUpKeyDownKeyAKeyBKeyPlusKeyMinusKeyHomeKeyO
 var _Key_index = [...]uint8{0, 7, 15, 20, 27, 31, 35, 42, 50, 57, 63, 69, 73, 77, 82, 87, 92, 97, 106, 115, 119, 123, 136, 151, 163, 172, 182, 192, 205}
 
 func (i Key) String() string {
-	if i >= Key(len(_Key_index)-1) {
+	idx := int(i) - 0
+	if i < 0 || idx >= len(_Key_index)-1 {
 		return "Key(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
-	return _Key_name[_Key_index[i]:_Key_index[i+1]]
+	return _Key_name[_Key_index[idx]:_Key_index[idx+1]]
 }
 func _() {
 	// An "invalid array index" compiler error signifies that the constant values have changed.
@@ -95,10 +96,11 @@ const _KeyState_name = "StateReleasedStatePressedStateRepeated"
 var _KeyState_index = [...]uint8{0, 13, 25, 38}
 
 func (i KeyState) String() string {
-	if i >= KeyState(len(_KeyState_index)-1) {
+	idx := int(i) - 0
+	if i < 0 || idx >= len(_KeyState_index)-1 {
 		return "KeyState(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
-	return _KeyState_name[_KeyState_index[i]:_KeyState_index[i+1]]
+	return _KeyState_name[_KeyState_index[idx]:_KeyState_index[idx+1]]
 }
 func _() {
 	// An "invalid array index" compiler error signifies that the constant values have changed.
@@ -113,8 +115,9 @@ const _MonitorType_name = "MonitorUdevMonitorKernel"
 var _MonitorType_index = [...]uint8{0, 11, 24}
 
 func (i MonitorType) String() string {
-	if i >= MonitorType(len(_MonitorType_index)-1) {
+	idx := int(i) - 0
+	if i < 0 || idx >= len(_MonitorType_index)-1 {
 		return "MonitorType(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
-	return _MonitorType_name[_MonitorType_index[i]:_MonitorType_index[i+1]]
+	return _MonitorType_name[_MonitorType_index[idx]:_MonitorType_index[idx+1]]
 }
