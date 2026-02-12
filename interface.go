@@ -824,11 +824,11 @@ type eventInterface interface {
 	acceptEvent(ts time.Time, event, code uint16, value int32) (Event, error)
 }
 
-func readEvent(fd *os.File) (*C.struct_input_event, error) {
+func readEvent(fd io.Reader) (*C.struct_input_event, error) {
 	var ev C.struct_input_event
 	buf := unsafe.Slice((*byte)(unsafe.Pointer(&ev)), unsafe.Sizeof(ev))
 
-	n, err := fd.Read(buf)
+	n, err := io.ReadFull(fd, buf)
 	if err != nil {
 		return nil, err
 	}
