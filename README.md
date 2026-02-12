@@ -36,7 +36,6 @@ Supported devices are:
 - bluez 4.101 or newer (bluez-5.0 or newer recommended)
 - [Go](https://go.dev/) 1.24 or newer
 - [libudev](https://www.freedesktop.org/software/systemd/man/latest/libudev.html)
-- [morestringer](https://github.com/friedelschoen/morestringer) -- alternatively regular `stringer` by editing `go:generate`-occurrences.
 
 ## Usage
 
@@ -145,14 +144,14 @@ Feel free to add functionality and make a pull request!
 
 ### Tooling
 
-This project makes use of `stringer` to generate `.String()` methods for enums.
-- Install `stringer`:
+This project makes use of [morestringer](https://github.com/friedelschoen/morestringer) to generate `.String()` methods for enums.
+- Install `morestringer`:
   ```
-  $ go install golang.org/x/tools/cmd/stringer
+  go install github.com/friedelschoen/morestringer
   ```
 - Run generators:
   ```
-  $ go generate ./...
+  go generate ./...
   ```
 
 ### Formatting
