@@ -130,7 +130,7 @@ func TestFindDots_FiltersInvalidAndMapsCoordinates(t *testing.T) {
 // findCanditates
 
 func TestFindCandidates_GoodBarOneCandidate(t *testing.T) {
-	ir := NewIRPointer(nil)
+	ir := NewIRPointer(nil, FRect{})
 
 	// Two dots horizontally aligned => slope ~0 and width > MinSbWidth.
 	dots := []FVec2{{-0.4, 0.0}, {0.4, 0.0}}
@@ -153,7 +153,7 @@ func TestFindCandidates_GoodBarOneCandidate(t *testing.T) {
 func TestFindCandidates_TooSteepRejected(t *testing.T) {
 	params := DefaultIRParams
 	params.MaxSbSlope = 0.2 // make slope check stricter
-	ir := NewIRPointer(&params)
+	ir := NewIRPointer(&params, FRect{})
 
 	dots := []FVec2{{-0.4, -0.4}, {0.4, 0.4}} // slope ~ 1.0
 	accDots := copyDots(dots)
@@ -167,7 +167,7 @@ func TestFindCandidates_TooSteepRejected(t *testing.T) {
 func TestFindCandidates_TooNarrowRejected(t *testing.T) {
 	params := DefaultIRParams
 	params.MinSbWidth = 0.9 // wider than our dot separation
-	ir := NewIRPointer(&params)
+	ir := NewIRPointer(&params, FRect{})
 
 	dots := []FVec2{{-0.2, 0.0}, {0.2, 0.0}} // width 0.4
 	accDots := copyDots(dots)
@@ -199,7 +199,7 @@ func TestFindCandidates_TooNarrowRejected(t *testing.T) {
 // updateSensorbar + health
 
 func TestUpdateSensorbar_NoDotsHealthTransitions(t *testing.T) {
-	ir := NewIRPointer(nil)
+	ir := NewIRPointer(nil, FRect{})
 
 	// Starting IRDead with no dots should remain IRDead and report ok=false.
 	raw, ok := ir.updateSensorbar(mkSlots(), 0)
@@ -222,7 +222,7 @@ func TestUpdateSensorbar_NoDotsHealthTransitions(t *testing.T) {
 }
 
 func TestUpdateSensorbar_TwoDotsGivesGoodAndDistance(t *testing.T) {
-	ir := NewIRPointer(nil)
+	ir := NewIRPointer(nil, FRect{})
 
 	// Two visible points at y=384 => normalized Y ~ 0.
 	slots := mkSlots(
@@ -439,7 +439,7 @@ func TestUpdateSensorbar_TwoDotsGivesGoodAndDistance(t *testing.T) {
 func TestUpdateRoll_ErrorDropoutSetsPositionNil(t *testing.T) {
 	params := DefaultIRParams
 	params.ErrorMaxCount = 3
-	ir := NewIRPointer(&params)
+	ir := NewIRPointer(&params, FRect{})
 
 	// Initialize position first.
 	okSlots := mkSlots(
@@ -447,7 +447,7 @@ func TestUpdateRoll_ErrorDropoutSetsPositionNil(t *testing.T) {
 		mkSlotValid(624, 384),
 	)
 	ir.UpdateRoll(okSlots, 0)
-	if ir.Position == nil {
+	if ir.RawPosition == nil {
 		t.Fatalf("expected Position initialized")
 	}
 
@@ -458,7 +458,7 @@ func TestUpdateRoll_ErrorDropoutSetsPositionNil(t *testing.T) {
 	ir.UpdateRoll(none, 0)
 	ir.UpdateRoll(none, 0)
 
-	if ir.Position != nil {
-		t.Fatalf("expected Position=nil after enough errors, got %v", *ir.Position)
+	if ir.RawPosition != nil {
+		t.Fatalf("expected Position=nil after enough errors, got %v", *ir.RawPosition)
 	}
 }

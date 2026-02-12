@@ -1,4 +1,4 @@
-// Package irpointer contains an algorithm to use your wiimote IR-sensors as pointer on a screen
+// Package irpointe contains an algorithm to use your wiimote IR-sensors as pointer on a screen
 package irpointer
 
 // Algorithm to process Wiimote IR tracking data into a usable pointer position
@@ -44,7 +44,51 @@ type FVec2 struct {
 	X, Y float64
 }
 
-// SensorBar holds state information on the sensor bar
+// FRect represents a 2D floating point rectangle, streched over an Min and Max point.
+type FRect struct {
+	Min, Max FVec2
+}
+
+func (r FRect) Contains(p FVec2) bool {
+	return p.X >= r.Min.X && p.X <= r.Max.X && p.Y >= r.Min.Y && p.Y <= r.Max.Y
+}
+
+func (r FRect) Width() float64 {
+	return r.Max.X - r.Min.X
+}
+
+func (r FRect) Height() float64 {
+	return r.Max.Y - r.Min.Y
+}
+
+func (r FRect) Empty() bool {
+	return r.Max.X <= r.Min.X || r.Max.Y <= r.Min.Y
+}
+
+func (r FRect) Normal(p FVec2) FVec2 {
+	if r.Empty() {
+		return FVec2{}
+	}
+	if p.X < r.Min.X {
+		p.X = r.Min.X
+	} else if p.X > r.Max.X {
+		p.X = r.Min.X
+	}
+	if p.Y < r.Min.Y {
+		p.Y = r.Min.Y
+	} else if p.Y > r.Max.Y {
+		p.Y = r.Min.Y
+	}
+
+	w := r.Width()
+	h := r.Height()
+
+	x := (p.X - r.Min.X) / w
+	y := (p.Y - r.Min.Y) / h
+
+	return FVec2{X: x*2 - 1, Y: y*2 - 1}
+}
+
 type SensorBar struct {
 	// Angle wiimote to sensorbar in radians.
 	Angle float64
@@ -111,13 +155,18 @@ type SensorBar struct {
 type IRPointer struct {
 	SensorBar
 	params *IRParams
+	bounds FRect
 
 	// Health of pointer
 	Health IRHealth
 	// Distance from wiimote to screen in centimeters
 	Distance float64
 	// Smoothed coordinate
-	Position *FVec2
+	RawPosition *FVec2
+	// Normalized coordinates between -1 .. 1 (nil bounds not provided)
+	NormalPosition *FVec2
+	// If the pointer currently is inside scope
+	InBounds bool
 
 	errorCount  int // Error count from smoothing algorithm
 	glitchCount int // Glitch count from smoothing algorithm
@@ -245,9 +294,11 @@ func square(f float64) float64 {
 
 // NewIRPointer allocates a new IRPointer. params can alter some functionality
 // but can also be nil'ed to use default parameters
-func NewIRPointer(params *IRParams) *IRPointer {
+// bounds can be proviced to receive a normalized position or left default to disable normalization
+func NewIRPointer(params *IRParams, bounds FRect) *IRPointer {
 	ir := &IRPointer{}
 	ir.params = &DefaultIRParams
+	ir.bounds = bounds
 	if params != nil {
 		ir.params = params
 	}
@@ -487,19 +538,19 @@ func (ir *IRPointer) updateSensorbar(slots [4]xwiimote.IRSlot, roll float64) (ra
 }
 
 func (ir *IRPointer) applySmoothing(raw FVec2) {
-	dx := raw.X - ir.Position.X
-	dy := raw.Y - ir.Position.Y
+	dx := raw.X - ir.RawPosition.X
+	dy := raw.Y - ir.RawPosition.Y
 	d := math.Sqrt(square(dx) + square(dy))
 	if d <= ir.params.SmootherDeadzone {
 		return
 	}
 	if d < ir.params.SmootherRadius {
-		ir.Position.X += dx * ir.params.SmootherSpeed
-		ir.Position.Y += dy * ir.params.SmootherSpeed
+		ir.RawPosition.X += dx * ir.params.SmootherSpeed
+		ir.RawPosition.Y += dy * ir.params.SmootherSpeed
 	} else {
 		theta := math.Atan2(dy, dx)
-		ir.Position.X = raw.X - math.Cos(theta)*ir.params.SmootherRadius
-		ir.Position.Y = raw.Y - math.Sin(theta)*ir.params.SmootherRadius
+		ir.RawPosition.X = raw.X - math.Cos(theta)*ir.params.SmootherRadius
+		ir.RawPosition.Y = raw.Y - math.Sin(theta)*ir.params.SmootherRadius
 	}
 }
 
@@ -508,7 +559,7 @@ func (ir *IRPointer) applySmoothing(raw FVec2) {
 // If acceleration data is unreliable (wiimote is significantly
 // accelerating) then you should supply the last known good value.
 func (ir *IRPointer) Update(slots [4]xwiimote.IRSlot, accel xwiimote.Vec3) {
-	roll := math.Atan2(float64(accel.X), float64(accel.Y))
+	roll := math.Atan2(float64(accel.X), float64(accel.Z))
 	ir.UpdateRoll(slots, roll)
 }
 
@@ -522,18 +573,19 @@ func (ir *IRPointer) UpdateRoll(slots [4]xwiimote.IRSlot, roll float64) {
 
 	if !ok {
 		if ir.errorCount >= ir.params.ErrorMaxCount {
-			ir.Position = nil
+			ir.RawPosition = nil
+			ir.NormalPosition = nil
 		} else {
 			ir.errorCount++
 		}
 		return
 	}
 
-	if ir.errorCount >= ir.params.ErrorMaxCount {
-		ir.Position = &raw
+	if ir.RawPosition == nil {
+		ir.RawPosition = &raw
 		ir.glitchCount = 0
 	} else {
-		d := square(raw.X-ir.Position.X) + square(raw.Y-ir.Position.Y)
+		d := square(raw.X-ir.RawPosition.X) + square(raw.Y-ir.RawPosition.Y)
 		if d > ir.params.GlitchDistance {
 			if ir.glitchCount > ir.params.GlitchMaxCount {
 				ir.applySmoothing(raw)
@@ -545,6 +597,11 @@ func (ir *IRPointer) UpdateRoll(slots [4]xwiimote.IRSlot, roll float64) {
 			ir.applySmoothing(raw)
 			ir.glitchCount = 0
 		}
+	}
+	if !ir.bounds.Empty() {
+		normal := ir.bounds.Normal(*ir.RawPosition)
+		ir.NormalPosition = &normal
+		ir.InBounds = ir.bounds.Contains(*ir.RawPosition)
 	}
 	ir.errorCount = 0
 }

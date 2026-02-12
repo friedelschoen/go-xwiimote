@@ -1,6 +1,7 @@
 package vinput
 
 import (
+	"errors"
 	"fmt"
 	"unsafe"
 )
@@ -101,13 +102,15 @@ func (vRel *Mouse) Set(x, y int32) error {
 }
 
 // Scroll will simulate a wheel movement.
-func (vRel *Mouse) Scroll(horizontal bool, delta int32) error {
-	w := relWheel
-	if horizontal {
-		w = relHWheel
+func (vRel *Mouse) Scroll(x, y int32) error {
+	var errs [2]error
+	if x != 0 {
+		errs[0] = vRel.emit(evRel, relHWheel, x)
 	}
-	err := vRel.emit(evRel, uint16(w), delta)
-	if err != nil {
+	if y != 0 {
+		errs[1] = vRel.emit(evRel, relHWheel, y)
+	}
+	if err := errors.Join(errs[:]...); err != nil {
 		return err
 	}
 	return vRel.sync()

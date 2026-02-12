@@ -10,6 +10,8 @@ import (
 	"github.com/friedelschoen/go-xwiimote/pkg/vinput"
 )
 
+var ScrollSpeed = flag.Float64("-scrollspeed", 1.0, "Set the scrollspeed")
+
 func watchDevice(dev *xwiimote.Device) {
 	mouse, err := vinput.CreateMouse("xwiimote-mouse",
 		vinput.Range{Min: -340, Max: 340, Res: 72},
@@ -26,7 +28,8 @@ func watchDevice(dev *xwiimote.Device) {
 	bat, _ := dev.GetBattery()
 	fmt.Printf("new wiimote at %s with %d%% battery\n", dev.GetSyspath(), bat)
 
-	pointer := irpointer.NewIRPointer(nil)
+	pointer := irpointer.NewIRPointer(nil, irpointer.FRect{Min: irpointer.FVec2{X: -340, Y: -92}, Max: irpointer.FVec2{X: 340, Y: 290}})
+	var scroll *irpointer.FVec2
 	var lastIR *xwiimote.EventIR
 	var lastAccel *xwiimote.EventAccel
 	for {
@@ -50,22 +53,21 @@ func watchDevice(dev *xwiimote.Device) {
 				mouse.Key(vinput.ButtonRight, ev.State != xwiimote.StateReleased)
 			case xwiimote.KeyHome:
 				mouse.Key(vinput.ButtonMiddle, ev.State != xwiimote.StateReleased)
-			case xwiimote.KeyUp:
-				if ev.State == xwiimote.StatePressed {
-					mouse.Scroll(false, -10)
-				}
 			case xwiimote.KeyDown:
 				if ev.State == xwiimote.StatePressed {
-					mouse.Scroll(false, 10)
+					if pointer.RawPosition != nil {
+						scroll = pointer.RawPosition
+					} else {
+						scroll = &irpointer.FVec2{}
+					}
+				} else {
+					scroll = nil
 				}
+
 			case xwiimote.KeyLeft:
-				if ev.State == xwiimote.StatePressed {
-					mouse.Scroll(true, -10)
-				}
+				mouse.Key(vinput.ButtonBack, ev.State != xwiimote.StateReleased)
 			case xwiimote.KeyRight:
-				if ev.State == xwiimote.StatePressed {
-					mouse.Scroll(true, 10)
-				}
+				mouse.Key(vinput.ButtonForward, ev.State != xwiimote.StateReleased)
 			}
 		}
 		if lastIR != nil && lastAccel != nil {
@@ -73,10 +75,21 @@ func watchDevice(dev *xwiimote.Device) {
 			lastIR = nil
 			lastAccel = nil
 		}
-		if pointer.Health >= irpointer.IRGood && pointer.Position != nil {
-			x, y := pointer.Position.X, pointer.Position.Y
-			if x >= -340 && x < 340 && y >= -92 && y < 290 {
-				fmt.Printf("[%v] pointer at (%.2f %.2f) at %.2fm distance\n", pointer.Health, pointer.Position.X, pointer.Position.Y, pointer.Distance)
+		if pointer.Health >= irpointer.IRGood {
+			x, y := pointer.RawPosition.X, pointer.RawPosition.Y
+			if scroll != nil {
+				dx := x - scroll.X
+				dy := y - scroll.Y
+				if dx > -10 && dx < 10 {
+					dx = 0
+				}
+				if dy > -10 && dy < 10 {
+					dy = 0
+				}
+
+				mouse.Scroll(int32(*ScrollSpeed*dx), int32(*ScrollSpeed*dy))
+			} else if pointer.InBounds {
+				fmt.Printf("[%v] pointer at (%.2f %.2f) at %.2fm distance\n", pointer.Health, pointer.RawPosition.X, pointer.RawPosition.Y, pointer.Distance)
 				err := mouse.Set(int32(x), int32(y))
 				fmt.Println("err: ", err)
 			}
@@ -98,6 +111,6 @@ func main() {
 			log.Printf("error while polling: %v\n", err)
 			continue
 		}
-		watchDevice(dev)
+		go watchDevice(dev)
 	}
 }
