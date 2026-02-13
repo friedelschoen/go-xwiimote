@@ -151,7 +151,7 @@ func TestFindCandidates_GoodBarOneCandidate(t *testing.T) {
 }
 
 func TestFindCandidates_TooSteepRejected(t *testing.T) {
-	params := DefaultIRParams
+	params := DefaultParams
 	params.MaxSbSlope = 0.2 // make slope check stricter
 	ir := NewIRPointer(&params, FRect{})
 
@@ -165,7 +165,7 @@ func TestFindCandidates_TooSteepRejected(t *testing.T) {
 }
 
 func TestFindCandidates_TooNarrowRejected(t *testing.T) {
-	params := DefaultIRParams
+	params := DefaultParams
 	params.MinSbWidth = 0.9 // wider than our dot separation
 	ir := NewIRPointer(&params, FRect{})
 
@@ -437,7 +437,7 @@ func TestUpdateSensorbar_TwoDotsGivesGoodAndDistance(t *testing.T) {
 // }
 
 func TestUpdateRoll_ErrorDropoutSetsPositionNil(t *testing.T) {
-	params := DefaultIRParams
+	params := DefaultParams
 	params.ErrorMaxCount = 3
 	ir := NewIRPointer(&params, FRect{})
 
@@ -447,7 +447,7 @@ func TestUpdateRoll_ErrorDropoutSetsPositionNil(t *testing.T) {
 		mkSlotValid(624, 384),
 	)
 	ir.UpdateRoll(okSlots, 0)
-	if ir.RawPosition == nil {
+	if !ir.Valid {
 		t.Fatalf("expected Position initialized")
 	}
 
@@ -458,7 +458,7 @@ func TestUpdateRoll_ErrorDropoutSetsPositionNil(t *testing.T) {
 	ir.UpdateRoll(none, 0)
 	ir.UpdateRoll(none, 0)
 
-	if ir.RawPosition != nil {
-		t.Fatalf("expected Position=nil after enough errors, got %v", *ir.RawPosition)
+	if !ir.Valid {
+		t.Fatalf("expected valid=true enough errors, got %v", ir.Valid)
 	}
 }

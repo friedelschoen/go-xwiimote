@@ -50,7 +50,7 @@ type FRect struct {
 }
 
 func (r FRect) Contains(p FVec2) bool {
-	return p.X >= r.Min.X && p.X <= r.Max.X && p.Y >= r.Min.Y && p.Y <= r.Max.Y
+	return p.X >= r.Min.X && p.X < r.Max.X && p.Y >= r.Min.Y && p.Y < r.Max.Y
 }
 
 func (r FRect) Width() float64 {
@@ -71,13 +71,13 @@ func (r FRect) Normal(p FVec2) FVec2 {
 	}
 	if p.X < r.Min.X {
 		p.X = r.Min.X
-	} else if p.X > r.Max.X {
-		p.X = r.Min.X
+	} else if p.X >= r.Max.X-1 {
+		p.X = r.Max.X
 	}
 	if p.Y < r.Min.Y {
 		p.Y = r.Min.Y
-	} else if p.Y > r.Max.Y {
-		p.Y = r.Min.Y
+	} else if p.Y >= r.Max.Y {
+		p.Y = r.Max.Y - 1
 	}
 
 	w := r.Width()
@@ -154,30 +154,32 @@ type SensorBar struct {
 // corresponding to pointing directly at the sensor bar.
 type IRPointer struct {
 	SensorBar
-	params *IRParams
+	params *Params
 	bounds FRect
 
 	// Health of pointer
-	Health IRHealth
+	Health Health
 	// Distance from wiimote to screen in centimeters
 	Distance float64
+	// Wether Position and NormalPosition hold valid values
+	Valid bool
 	// Smoothed coordinate
-	RawPosition *FVec2
-	// Normalized coordinates between -1 .. 1 (nil bounds not provided)
-	NormalPosition *FVec2
-	// If the pointer currently is inside scope
+	Position FVec2
+	// Normalized coordinates between -1 .. 1, unused is bounds is not supplied
+	NormalPosition FVec2
+	// If the pointer currently is inside scope, unused is bounds is not supplied
 	InBounds bool
 
 	errorCount  int // Error count from smoothing algorithm
 	glitchCount int // Glitch count from smoothing algorithm
 }
 
-// IRHealth describes the current tracking of sensorbars
-type IRHealth uint
+// Health describes the current tracking of sensorbars
+type Health uint
 
 const (
 	// The pointer is dead if it never had any signal yet
-	IRDead IRHealth = iota
+	IRDead Health = iota
 	// The pointer is lost if it had a signal which is now lost
 	IRLost
 	// The pointer can track one IR signal and must guess the position, a position is available but can be varying
@@ -186,7 +188,7 @@ const (
 	IRGood
 )
 
-type IRParams struct {
+type Params struct {
 	// Height is half-height of the IR sensor if half-width is 1
 	Height float64
 
@@ -235,7 +237,7 @@ type IRParams struct {
 	GlitchDistance float64
 }
 
-var DefaultIRParams = IRParams{
+var DefaultParams = Params{
 	Height: 384.0 / 512.0,
 
 	MaxSbSlope: 0.7, // : tan(35 degrees)
@@ -295,38 +297,43 @@ func square(f float64) float64 {
 // NewIRPointer allocates a new IRPointer. params can alter some functionality
 // but can also be nil'ed to use default parameters
 // bounds can be proviced to receive a normalized position or left default to disable normalization
-func NewIRPointer(params *IRParams, bounds FRect) *IRPointer {
+func NewIRPointer(params *Params, bounds FRect) *IRPointer {
 	ir := &IRPointer{}
-	ir.params = &DefaultIRParams
 	ir.bounds = bounds
 	if params != nil {
 		ir.params = params
+	} else {
+		ir.params = &DefaultParams
 	}
 	ir.errorCount = ir.params.ErrorMaxCount
 	return ir
 }
 
-func findDots(slots [4]xwiimote.IRSlot) (dots []FVec2) {
+func findDots(slots [4]xwiimote.IRSlot) []FVec2 {
 	// count visible dots and populate dots structure
 	// dots[] is in -1..1 units for width
+	var dots [4]FVec2
+	l := 0
 	for _, slot := range slots {
 		if slot.Valid() {
-			var dot FVec2
-			dot.X = -(float64(slot.X) - 512.0) / 512.0
-			dot.Y = (float64(slot.Y) - 384.0) / 512.0
-			dots = append(dots, dot)
+			dots[l].X = -(float64(slot.X) - 512.0) / 512.0
+			dots[l].Y = (float64(slot.Y) - 384.0) / 512.0
+			l++
 		}
 	}
-	return
+	return dots[:l]
 }
 
-func (ir *IRPointer) findCanditates(dots, accDots []FVec2, roll float64) (candidates []SensorBar) {
+func (ir *IRPointer) findCanditates(dots, accDots []FVec2, roll float64) []SensorBar {
 	if len(dots) < 2 {
 		return nil
 	}
 
 	// iterate through all dot pairs
+	var candidates [6]SensorBar
+	l := 0
 	for first := 0; first < (len(dots) - 1); first++ {
+	candLoop:
 		for second := (first + 1); second < len(dots); second++ {
 			// order the dots leftmost first into cand
 			// storing both the raw dots and the accel-rotated dots
@@ -365,7 +372,6 @@ func (ir *IRPointer) findCanditates(dots, accDots []FVec2, roll float64) (candid
 
 			// middle dot check. If there's another source somewhere in the
 			// middle of this candidate, then this can't be a sensor bar
-			isBar := true
 			for i := range dots {
 				var wadj, hadj float64
 				if i == first || i == second {
@@ -379,21 +385,17 @@ func (ir *IRPointer) findCanditates(dots, accDots []FVec2, roll float64) (candid
 					((cand.rotDots[1].X - wadj) > tdot[0].X) &&
 					((cand.rotDots[0].Y + hadj) > tdot[0].Y) &&
 					((cand.rotDots[0].Y - hadj) < tdot[0].Y) {
-					isBar = false
-					break
+					continue candLoop
 				}
-			}
-			// failed middle dot check
-			if !isBar {
-				continue
 			}
 			cand.score = 1 / (cand.rotDots[1].X - cand.rotDots[0].X)
 
 			// we have a candidate, store it
-			candidates = append(candidates, cand)
+			candidates[l] = cand
+			l++
 		}
 	}
-	return
+	return candidates[:l]
 }
 
 func (ir *IRPointer) guessSingle(dots, accDots []FVec2, roll float64) (sb SensorBar, ok bool) {
@@ -501,14 +503,14 @@ func (ir *IRPointer) updateSensorbar(slots [4]xwiimote.IRSlot, roll float64) (ra
 	}
 
 	// first rotate according to accelerometer orientation
-	accDots := make([]FVec2, len(dots))
-	rotateDots(accDots, dots, roll)
+	var accDots [4]FVec2
+	rotateDots(accDots[:], dots, roll)
 
-	candidates := ir.findCanditates(dots, accDots, roll)
+	candidates := ir.findCanditates(dots, accDots[:len(dots)], roll)
 	switch len(candidates) {
 	case 0:
 		var sb SensorBar
-		sb, ok = ir.guessSingle(dots, accDots, roll)
+		sb, ok = ir.guessSingle(dots, accDots[:len(dots)], roll)
 		if !ok {
 			return
 		}
@@ -538,19 +540,19 @@ func (ir *IRPointer) updateSensorbar(slots [4]xwiimote.IRSlot, roll float64) (ra
 }
 
 func (ir *IRPointer) applySmoothing(raw FVec2) {
-	dx := raw.X - ir.RawPosition.X
-	dy := raw.Y - ir.RawPosition.Y
+	dx := raw.X - ir.Position.X
+	dy := raw.Y - ir.Position.Y
 	d := math.Sqrt(square(dx) + square(dy))
 	if d <= ir.params.SmootherDeadzone {
 		return
 	}
 	if d < ir.params.SmootherRadius {
-		ir.RawPosition.X += dx * ir.params.SmootherSpeed
-		ir.RawPosition.Y += dy * ir.params.SmootherSpeed
+		ir.Position.X += dx * ir.params.SmootherSpeed
+		ir.Position.Y += dy * ir.params.SmootherSpeed
 	} else {
 		theta := math.Atan2(dy, dx)
-		ir.RawPosition.X = raw.X - math.Cos(theta)*ir.params.SmootherRadius
-		ir.RawPosition.Y = raw.Y - math.Sin(theta)*ir.params.SmootherRadius
+		ir.Position.X = raw.X - math.Cos(theta)*ir.params.SmootherRadius
+		ir.Position.Y = raw.Y - math.Sin(theta)*ir.params.SmootherRadius
 	}
 }
 
@@ -573,19 +575,19 @@ func (ir *IRPointer) UpdateRoll(slots [4]xwiimote.IRSlot, roll float64) {
 
 	if !ok {
 		if ir.errorCount >= ir.params.ErrorMaxCount {
-			ir.RawPosition = nil
-			ir.NormalPosition = nil
+			ir.Valid = false
 		} else {
 			ir.errorCount++
 		}
 		return
 	}
 
-	if ir.RawPosition == nil {
-		ir.RawPosition = &raw
+	if ir.errorCount >= ir.params.ErrorMaxCount {
+		ir.Position = raw
+		ir.Valid = true
 		ir.glitchCount = 0
 	} else {
-		d := square(raw.X-ir.RawPosition.X) + square(raw.Y-ir.RawPosition.Y)
+		d := square(raw.X-ir.Position.X) + square(raw.Y-ir.Position.Y)
 		if d > ir.params.GlitchDistance {
 			if ir.glitchCount > ir.params.GlitchMaxCount {
 				ir.applySmoothing(raw)
@@ -599,9 +601,8 @@ func (ir *IRPointer) UpdateRoll(slots [4]xwiimote.IRSlot, roll float64) {
 		}
 	}
 	if !ir.bounds.Empty() {
-		normal := ir.bounds.Normal(*ir.RawPosition)
-		ir.NormalPosition = &normal
-		ir.InBounds = ir.bounds.Contains(*ir.RawPosition)
+		ir.NormalPosition = ir.bounds.Normal(ir.Position)
+		ir.InBounds = ir.bounds.Contains(ir.Position)
 	}
 	ir.errorCount = 0
 }

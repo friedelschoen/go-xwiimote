@@ -18,7 +18,7 @@ const _IRHealth_name = "IRDeadIRLostIRSingleIRGood"
 
 var _IRHealth_index = [...]uint8{0, 6, 12, 20, 26}
 
-func (i IRHealth) String() string {
+func (i Health) String() string {
 	idx := int(i) - 0
 	if i < 0 || idx >= len(_IRHealth_index)-1 {
 		return "IRHealth(" + strconv.FormatInt(int64(i), 10) + ")"

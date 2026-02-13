@@ -55,8 +55,8 @@ func watchDevice(dev *xwiimote.Device) {
 				mouse.Key(vinput.ButtonMiddle, ev.State != xwiimote.StateReleased)
 			case xwiimote.KeyDown:
 				if ev.State == xwiimote.StatePressed {
-					if pointer.RawPosition != nil {
-						scroll = pointer.RawPosition
+					if pointer.Valid {
+						scroll = &pointer.Position
 					} else {
 						scroll = &irpointer.FVec2{}
 					}
@@ -76,7 +76,7 @@ func watchDevice(dev *xwiimote.Device) {
 			lastAccel = nil
 		}
 		if pointer.Health >= irpointer.IRGood {
-			x, y := pointer.RawPosition.X, pointer.RawPosition.Y
+			x, y := pointer.Position.X, pointer.Position.Y
 			if scroll != nil {
 				dx := x - scroll.X
 				dy := y - scroll.Y
@@ -89,7 +89,7 @@ func watchDevice(dev *xwiimote.Device) {
 
 				mouse.Scroll(int32(*ScrollSpeed*dx), int32(*ScrollSpeed*dy))
 			} else if pointer.InBounds {
-				fmt.Printf("[%v] pointer at (%.2f %.2f) at %.2fm distance\n", pointer.Health, pointer.RawPosition.X, pointer.RawPosition.Y, pointer.Distance)
+				fmt.Printf("[%v] pointer at (%.2f %.2f) at %.2fm distance\n", pointer.Health, pointer.Position.X, pointer.Position.Y, pointer.Distance)
 				err := mouse.Set(int32(x), int32(y))
 				fmt.Println("err: ", err)
 			}
