@@ -85,7 +85,7 @@ func (iff *commonInterface) open(dev *Device, node string, wr bool) error {
 	// if err != nil {
 	// 	return err
 	// }
-	// if name != iff.self.Name() {
+	// if name != iff..Name() {
 	// 	return fmt.Errorf("device does not hold correct name: expected %q, got %q", iff.self.Name(), name)
 	// }
 
@@ -244,7 +244,7 @@ type InterfaceAccel struct {
 }
 
 func (InterfaceAccel) Name() string {
-	return "Nintendo Wii Remote"
+	return "Nintendo Wii Remote Accelerometer"
 }
 
 func (iface *InterfaceAccel) acceptEvent(ts time.Time, event, code uint16, value int32) (Event, error) {
@@ -278,7 +278,7 @@ type InterfaceIR struct {
 }
 
 func (InterfaceIR) Name() string {
-	return "Nintendo Wii Remote"
+	return "Nintendo Wii Remote IR"
 }
 
 func (iface *InterfaceIR) acceptEvent(ts time.Time, event, code uint16, value int32) (Event, error) {
@@ -322,7 +322,7 @@ type InterfaceMotionPlus struct {
 }
 
 func (InterfaceMotionPlus) Name() string {
-	return "Nintendo Wii Remote"
+	return "Nintendo Wii Remote Motion Plus"
 }
 
 func (iface *InterfaceMotionPlus) acceptEvent(ts time.Time, event, code uint16, value int32) (Event, error) {
@@ -377,7 +377,7 @@ type InterfaceNunchuck struct {
 }
 
 func (InterfaceNunchuck) Name() string {
-	return "Nintendo Wii Remote"
+	return "Nintendo Wii Remote Nunchuk"
 }
 
 func (iface *InterfaceNunchuck) acceptEvent(ts time.Time, event, code uint16, value int32) (Event, error) {
@@ -437,7 +437,7 @@ type InterfaceClassicController struct {
 }
 
 func (InterfaceClassicController) Name() string {
-	return "Nintendo Wii Remote"
+	return "Nintendo Wii Remote Classic Controller"
 }
 
 func (iface *InterfaceClassicController) acceptEvent(ts time.Time, event, code uint16, value int32) (Event, error) {
@@ -525,7 +525,7 @@ type balanceboardInterface struct {
 }
 
 func (balanceboardInterface) Name() string {
-	return "Nintendo Wii Remote"
+	return "Nintendo Wii Remote Balance Board"
 }
 
 func (iface *balanceboardInterface) acceptEvent(ts time.Time, event, code uint16, value int32) (Event, error) {
@@ -562,7 +562,7 @@ type InterfaceProController struct {
 }
 
 func (InterfaceProController) Name() string {
-	return "Nintendo Wii Remote"
+	return "Nintendo Wii Remote Pro Controller"
 }
 
 func (iface *InterfaceProController) acceptEvent(ts time.Time, event, code uint16, value int32) (Event, error) {
@@ -654,7 +654,7 @@ type InterfaceDrums struct {
 }
 
 func (InterfaceDrums) Name() string {
-	return "Nintendo Wii Remote"
+	return "Nintendo Wii Remote Drums"
 }
 
 func (iface *InterfaceDrums) acceptEvent(ts time.Time, event, code uint16, value int32) (Event, error) {
@@ -728,7 +728,7 @@ type InterfaceGuitar struct {
 }
 
 func (InterfaceGuitar) Name() string {
-	return "Nintendo Wii Remote"
+	return "Nintendo Wii Remote Guitar"
 }
 
 func (iface *InterfaceGuitar) acceptEvent(ts time.Time, event, code uint16, value int32) (Event, error) {
