@@ -39,115 +39,40 @@ import (
 	"github.com/friedelschoen/go-xwiimote"
 )
 
-// FVec2 represents a 2D floating point vector to X and Y.
-type FVec2 struct {
-	X, Y float64
-}
-
-// FRect represents a 2D floating point rectangle, streched over an Min and Max point.
-type FRect struct {
-	Min, Max FVec2
-}
-
-func (r FRect) Contains(p FVec2) bool {
-	return p.X >= r.Min.X && p.X < r.Max.X && p.Y >= r.Min.Y && p.Y < r.Max.Y
-}
-
-func (r FRect) Width() float64 {
-	return r.Max.X - r.Min.X
-}
-
-func (r FRect) Height() float64 {
-	return r.Max.Y - r.Min.Y
-}
-
-func (r FRect) Empty() bool {
-	return r.Max.X <= r.Min.X || r.Max.Y <= r.Min.Y
-}
-
-func (r FRect) Normal(p FVec2) FVec2 {
-	if r.Empty() {
-		return FVec2{}
-	}
-	if p.X < r.Min.X {
-		p.X = r.Min.X
-	} else if p.X >= r.Max.X-1 {
-		p.X = r.Max.X
-	}
-	if p.Y < r.Min.Y {
-		p.Y = r.Min.Y
-	} else if p.Y >= r.Max.Y {
-		p.Y = r.Max.Y - 1
+// rotates dots in `in` into `out`, `out` is expected to be at least as big as `in`
+func rotateDots(out []FVec2, in []FVec2, theta float64) {
+	// theta=0 doesn't do anything
+	if theta == 0 {
+		copy(out, in)
+		return
 	}
 
-	w := r.Width()
-	h := r.Height()
+	s := math.Sin(theta)
+	c := math.Cos(theta)
 
-	x := (p.X - r.Min.X) / w
-	y := (p.Y - r.Min.Y) / h
-
-	return FVec2{X: x*2 - 1, Y: y*2 - 1}
+	for i, dot := range in {
+		out[i].X = (c * dot.X) + (-s * dot.Y)
+		out[i].Y = (s * dot.X) + (c * dot.Y)
+	}
 }
 
-// IRPointer holds the current state of the pointer. The smoothed position is
-// roughly in the range (-512..512) for both X and Y, where 0 is center and
-// 512 is about the maximum offset. The actual returned
-// values will not necessarily cover that range (e.g. don't expect more than
-// -384..384 for Y if the wiimote is level). This range represents a square
-// screen. The values might exceed -512 or 512 under some circumstances.
-//
-// Keep in mind that you want to map the screen to a subset of this space, both
-// because presumably your screen doesn't have a 1:1 aspect ratio, and because
-// the Wiimote won't be able to cover the entire space. The worst case scenario
-// is when the Wiimote is sideways, where the X coordinate might only cover
-// about -384..384, and the corresponding Y coordinate range would only be
-// -216..216 for a 16:9 screen. There is a tradeoff here: using a larger range
-// means not being able to reach the edges of the screen with the wiimote turned
-// sideways, while using a smaller range means the cursor moves faster and is
-// harder to control.
-//
-// For example, a conservative mapping for a 16:9 screen might be:
-//
-// X left = -340, X right = 340
-// If sensor bar is below screen:
-//
-//	Y top = -290
-//	Y bottom = 92
-//
-// If sensor bar is above screen:
-//
-//	Y top = -92
-//	Y bottom = 290
-//
-// While a wider mapping might be:
-// X left = -430, X right = 430
-// If sensor bar is below screen:
-//
-//	Y top = -290
-//	Y bottom = 194
-//
-// If sensor bar is above screen:
-//
-//	Y top = -194
-//	Y bottom = 290
-//
-// Wider than the above starts having trouble at the edges.
-//
-// Notes on signs and ranges:
-// Raw Wiimote IR data maps 0,0 to the bottom left corner of the sensor's field
-// of view (this corresponds to pointing the wiimote up and to the right). This
-// is the format expected in ir.dot. roll should be 0 when the wiimote is
-// level and should increase as it is rotated clockwise, covering a -pi to pi
-// range. Output data has a positive X when pointing to the right of the sensor
-// bar, and a positive Y when pointing under the sensor bar, with 0,0
-// corresponding to pointing directly at the sensor bar.
-type IRPointer struct {
-	params *Params
-	bounds FRect
-	frame  Frame
+func square(f float64) float64 {
+	return f * f
+}
 
-	errorCount  int // Error count from smoothing algorithm
-	glitchCount int // Glitch count from smoothing algorithm
+func findDots(slots [4]xwiimote.IRSlot) []FVec2 {
+	// count visible dots and populate dots structure
+	// dots[] is in -1..1 units for width
+	var dots [4]FVec2
+	l := 0
+	for _, slot := range slots {
+		if slot.Valid() {
+			dots[l].X = -(float64(slot.X) - 512.0) / 512.0
+			dots[l].Y = (float64(slot.Y) - 384.0) / 512.0
+			l++
+		}
+	}
+	return dots[:l]
 }
 
 type SensorBar struct {
@@ -160,6 +85,20 @@ type SensorBar struct {
 	offAngle float64
 	score    float64
 }
+
+// Health describes the current tracking of sensorbars
+type Health uint
+
+const (
+	// The pointer is dead if it never had any signal yet
+	IRDead Health = iota
+	// The pointer is lost if it had a signal which is now lost
+	IRLost
+	// The pointer can track one IR signal and must guess the position, a position is available but can be varying
+	IRSingle
+	// The pointer can track the whole sensorbar (two IR signals) and the position is good
+	IRGood
+)
 
 type Frame struct {
 	SensorBar
@@ -177,20 +116,6 @@ type Frame struct {
 	// If the pointer currently is inside scope, unused is bounds is not supplied
 	InBounds bool
 }
-
-// Health describes the current tracking of sensorbars
-type Health uint
-
-const (
-	// The pointer is dead if it never had any signal yet
-	IRDead Health = iota
-	// The pointer is lost if it had a signal which is now lost
-	IRLost
-	// The pointer can track one IR signal and must guess the position, a position is available but can be varying
-	IRSingle
-	// The pointer can track the whole sensorbar (two IR signals) and the position is good
-	IRGood
-)
 
 type Params struct {
 	// Height is half-height of the IR sensor if half-width is 1
@@ -277,25 +202,65 @@ var DefaultParams = Params{
 	GlitchDistance: (150.0 * 150.0),
 }
 
-// rotates dots in `in` into `out`, `out` is expected to be at least as big as `in`
-func rotateDots(out []FVec2, in []FVec2, theta float64) {
-	// theta=0 doesn't do anything
-	if theta == 0 {
-		copy(out, in)
-		return
-	}
+// IRPointer holds the current state of the pointer. The smoothed position is
+// roughly in the range (-512..512) for both X and Y, where 0 is center and
+// 512 is about the maximum offset. The actual returned
+// values will not necessarily cover that range (e.g. don't expect more than
+// -384..384 for Y if the wiimote is level). This range represents a square
+// screen. The values might exceed -512 or 512 under some circumstances.
+//
+// Keep in mind that you want to map the screen to a subset of this space, both
+// because presumably your screen doesn't have a 1:1 aspect ratio, and because
+// the Wiimote won't be able to cover the entire space. The worst case scenario
+// is when the Wiimote is sideways, where the X coordinate might only cover
+// about -384..384, and the corresponding Y coordinate range would only be
+// -216..216 for a 16:9 screen. There is a tradeoff here: using a larger range
+// means not being able to reach the edges of the screen with the wiimote turned
+// sideways, while using a smaller range means the cursor moves faster and is
+// harder to control.
+//
+// For example, a conservative mapping for a 16:9 screen might be:
+//
+// X left = -340, X right = 340
+// If sensor bar is below screen:
+//
+//	Y top = -290
+//	Y bottom = 92
+//
+// If sensor bar is above screen:
+//
+//	Y top = -92
+//	Y bottom = 290
+//
+// While a wider mapping might be:
+// X left = -430, X right = 430
+// If sensor bar is below screen:
+//
+//	Y top = -290
+//	Y bottom = 194
+//
+// If sensor bar is above screen:
+//
+//	Y top = -194
+//	Y bottom = 290
+//
+// Wider than the above starts having trouble at the edges.
+//
+// Notes on signs and ranges:
+// Raw Wiimote IR data maps 0,0 to the bottom left corner of the sensor's field
+// of view (this corresponds to pointing the wiimote up and to the right). This
+// is the format expected in ir.dot. roll should be 0 when the wiimote is
+// level and should increase as it is rotated clockwise, covering a -pi to pi
+// range. Output data has a positive X when pointing to the right of the sensor
+// bar, and a positive Y when pointing under the sensor bar, with 0,0
+// corresponding to pointing directly at the sensor bar.
+type IRPointer struct {
+	params *Params
+	bounds FRect
+	frame  Frame
 
-	s := math.Sin(theta)
-	c := math.Cos(theta)
-
-	for i, dot := range in {
-		out[i].X = (c * dot.X) + (-s * dot.Y)
-		out[i].Y = (s * dot.X) + (c * dot.Y)
-	}
-}
-
-func square(f float64) float64 {
-	return f * f
+	errorCount  int // Error count from smoothing algorithm
+	glitchCount int // Glitch count from smoothing algorithm
 }
 
 // NewIRPointer allocates a new IRPointer. params can alter some functionality
@@ -311,21 +276,6 @@ func NewIRPointer(params *Params, bounds FRect) *IRPointer {
 	}
 	ir.errorCount = ir.params.ErrorMaxCount
 	return ir
-}
-
-func findDots(slots [4]xwiimote.IRSlot) []FVec2 {
-	// count visible dots and populate dots structure
-	// dots[] is in -1..1 units for width
-	var dots [4]FVec2
-	l := 0
-	for _, slot := range slots {
-		if slot.Valid() {
-			dots[l].X = -(float64(slot.X) - 512.0) / 512.0
-			dots[l].Y = (float64(slot.Y) - 384.0) / 512.0
-			l++
-		}
-	}
-	return dots[:l]
 }
 
 func (ir *IRPointer) findCanditates(dots, accDots []FVec2, roll float64) []SensorBar {
