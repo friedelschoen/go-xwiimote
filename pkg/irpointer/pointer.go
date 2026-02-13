@@ -89,17 +89,6 @@ func (r FRect) Normal(p FVec2) FVec2 {
 	return FVec2{X: x*2 - 1, Y: y*2 - 1}
 }
 
-type SensorBar struct {
-	// Angle wiimote to sensorbar in radians.
-	Angle float64
-
-	dots     [2]FVec2
-	accDots  [2]FVec2
-	rotDots  [2]FVec2
-	offAngle float64
-	score    float64
-}
-
 // IRPointer holds the current state of the pointer. The smoothed position is
 // roughly in the range (-512..512) for both X and Y, where 0 is center and
 // 512 is about the maximum offset. The actual returned
@@ -153,9 +142,27 @@ type SensorBar struct {
 // bar, and a positive Y when pointing under the sensor bar, with 0,0
 // corresponding to pointing directly at the sensor bar.
 type IRPointer struct {
-	SensorBar
 	params *Params
 	bounds FRect
+	frame  Frame
+
+	errorCount  int // Error count from smoothing algorithm
+	glitchCount int // Glitch count from smoothing algorithm
+}
+
+type SensorBar struct {
+	// Angle wiimote to sensorbar in radians.
+	Angle float64
+
+	dots     [2]FVec2
+	accDots  [2]FVec2
+	rotDots  [2]FVec2
+	offAngle float64
+	score    float64
+}
+
+type Frame struct {
+	SensorBar
 
 	// Health of pointer
 	Health Health
@@ -169,9 +176,6 @@ type IRPointer struct {
 	NormalPosition FVec2
 	// If the pointer currently is inside scope, unused is bounds is not supplied
 	InBounds bool
-
-	errorCount  int // Error count from smoothing algorithm
-	glitchCount int // Glitch count from smoothing algorithm
 }
 
 // Health describes the current tracking of sensorbars
@@ -406,7 +410,7 @@ func (ir *IRPointer) guessSingle(dots, accDots []FVec2, roll float64) (sb Sensor
 	var dx [2]float64
 	var sbx [2]SensorBar
 	// no sensor bar candidates, try to work with a lone dot
-	switch ir.Health {
+	switch ir.frame.Health {
 	case IRDead:
 		// we've never seen a sensor bar before, so we're screwed
 		return sb, false
@@ -414,7 +418,7 @@ func (ir *IRPointer) guessSingle(dots, accDots []FVec2, roll float64) (sb Sensor
 		// try to find the dot closest to the previous sensor bar
 		// position
 		for i, accDot := range accDots {
-			for j, saccDot := range ir.accDots {
+			for j, saccDot := range ir.frame.accDots {
 				d = square(accDot.X - saccDot.X)
 				d += square(accDot.Y - saccDot.Y)
 				if d < best {
@@ -424,16 +428,16 @@ func (ir *IRPointer) guessSingle(dots, accDots []FVec2, roll float64) (sb Sensor
 				}
 			}
 		}
-		if ir.Health != IRLost ||
+		if ir.frame.Health != IRLost ||
 			best < ir.params.SbSingleNoGuessDistance {
 			// now work out where the other dot would be, in the acc
 			// frame
 			sb.accDots[closestTo] = accDots[closest]
-			sb.accDots[closestTo^1].X = (ir.accDots[closestTo^1].X -
-				ir.accDots[closestTo].X +
+			sb.accDots[closestTo^1].X = (ir.frame.accDots[closestTo^1].X -
+				ir.frame.accDots[closestTo].X +
 				accDots[closest].X)
-			sb.accDots[closestTo^1].Y = (ir.accDots[closestTo^1].Y -
-				ir.accDots[closestTo].Y +
+			sb.accDots[closestTo^1].Y = (ir.frame.accDots[closestTo^1].Y -
+				ir.frame.accDots[closestTo].Y +
 				accDots[closest].Y)
 			// get the raw frame
 			rotateDots(sb.dots[:], sb.accDots[:], -roll)
@@ -447,8 +451,8 @@ func (ir *IRPointer) guessSingle(dots, accDots []FVec2, roll float64) (sb Sensor
 				// angle tends to drift, so recalculate
 				sb.offAngle = -math.Atan2(sb.accDots[1].Y-sb.accDots[0].Y,
 					sb.accDots[1].X-sb.accDots[0].X)
-				sb.Angle = ir.offAngle + roll
-				rotateDots(sb.rotDots[:], sb.accDots[:], ir.offAngle)
+				sb.Angle = ir.frame.offAngle + roll
+				rotateDots(sb.rotDots[:], sb.accDots[:], ir.frame.offAngle)
 				break
 			}
 		}
@@ -464,11 +468,11 @@ func (ir *IRPointer) guessSingle(dots, accDots []FVec2, roll float64) (sb Sensor
 		// and pick the one that places the other dot furthest off-screen
 		for i := range 2 {
 			sbx[i].accDots[i] = accDots[closest]
-			sbx[i].accDots[i^1].X = ir.accDots[i^1].X -
-				ir.accDots[i].X +
+			sbx[i].accDots[i^1].X = ir.frame.accDots[i^1].X -
+				ir.frame.accDots[i].X +
 				accDots[closest].X
-			sbx[i].accDots[i^1].Y = ir.accDots[i^1].Y -
-				ir.accDots[i].Y +
+			sbx[i].accDots[i^1].Y = ir.frame.accDots[i^1].Y -
+				ir.frame.accDots[i].Y +
 				accDots[closest].Y
 			rotateDots(sbx[i].dots[:], sbx[i].accDots[:], -roll)
 			dx[i] = max(math.Abs(sbx[i].dots[i^1].X), math.Abs(sbx[i].dots[i^1].Y/ir.params.Height))
@@ -481,8 +485,8 @@ func (ir *IRPointer) guessSingle(dots, accDots []FVec2, roll float64) (sb Sensor
 		// angle tends to drift, so recalculate
 		sb.offAngle = -(math.Atan2(sb.accDots[1].Y-sb.accDots[0].Y,
 			sb.accDots[1].X-sb.accDots[0].X))
-		sb.Angle = ir.offAngle + roll
-		rotateDots(sb.rotDots[:], sb.accDots[:], ir.offAngle)
+		sb.Angle = ir.frame.offAngle + roll
+		rotateDots(sb.rotDots[:], sb.accDots[:], ir.frame.offAngle)
 	}
 	sb.score = 0
 	return sb, true
@@ -495,8 +499,8 @@ func (ir *IRPointer) updateSensorbar(slots [4]xwiimote.IRSlot, roll float64) (ra
 
 	// nothing to track
 	if len(dots) == 0 {
-		if ir.Health != IRDead {
-			ir.Health = IRLost
+		if ir.frame.Health != IRDead {
+			ir.frame.Health = IRLost
 		}
 		ok = false
 		return
@@ -514,80 +518,78 @@ func (ir *IRPointer) updateSensorbar(slots [4]xwiimote.IRSlot, roll float64) (ra
 		if !ok {
 			return
 		}
-		ir.SensorBar = sb
-		ir.Health = IRSingle
+		ir.frame.SensorBar = sb
+		ir.frame.Health = IRSingle
 	case 1:
-		ir.SensorBar = candidates[0]
-		ir.Health = IRGood
+		ir.frame.SensorBar = candidates[0]
+		ir.frame.Health = IRGood
 	case 2:
-		ir.SensorBar = candidates[0]
+		ir.frame.SensorBar = candidates[0]
 		// search for best candidate
 		for i := 1; i < len(candidates); i++ {
-			if candidates[i].score > ir.SensorBar.score {
-				ir.SensorBar = candidates[i]
+			if candidates[i].score > ir.frame.SensorBar.score {
+				ir.frame.SensorBar = candidates[i]
 			}
 		}
-		ir.Health = IRGood
+		ir.frame.Health = IRGood
 	}
-	ir.Distance = 50 / (ir.rotDots[1].X - ir.rotDots[0].X)
+	ir.frame.Distance = 50 / (ir.frame.rotDots[1].X - ir.frame.rotDots[0].X)
 
 	raw = FVec2{
-		X: (ir.rotDots[0].X + ir.rotDots[1].X) / 2 * 512.0,
-		Y: (ir.rotDots[0].Y + ir.rotDots[1].Y) / 2 * 512.0,
+		X: (ir.frame.rotDots[0].X + ir.frame.rotDots[1].X) / 2 * 512.0,
+		Y: (ir.frame.rotDots[0].Y + ir.frame.rotDots[1].Y) / 2 * 512.0,
 	}
 	ok = true
 	return
 }
 
 func (ir *IRPointer) applySmoothing(raw FVec2) {
-	dx := raw.X - ir.Position.X
-	dy := raw.Y - ir.Position.Y
+	dx := raw.X - ir.frame.Position.X
+	dy := raw.Y - ir.frame.Position.Y
 	d := math.Sqrt(square(dx) + square(dy))
 	if d <= ir.params.SmootherDeadzone {
 		return
 	}
 	if d < ir.params.SmootherRadius {
-		ir.Position.X += dx * ir.params.SmootherSpeed
-		ir.Position.Y += dy * ir.params.SmootherSpeed
+		ir.frame.Position.X += dx * ir.params.SmootherSpeed
+		ir.frame.Position.Y += dy * ir.params.SmootherSpeed
 	} else {
 		theta := math.Atan2(dy, dx)
-		ir.Position.X = raw.X - math.Cos(theta)*ir.params.SmootherRadius
-		ir.Position.Y = raw.Y - math.Sin(theta)*ir.params.SmootherRadius
+		ir.frame.Position.X = raw.X - math.Cos(theta)*ir.params.SmootherRadius
+		ir.frame.Position.Y = raw.Y - math.Sin(theta)*ir.params.SmootherRadius
 	}
 }
 
-// Update processes new dots and acceleration values
+// Step processes new dots and acceleration values
 //
 // If acceleration data is unreliable (wiimote is significantly
 // accelerating) then you should supply the last known good value.
-func (ir *IRPointer) Update(slots [4]xwiimote.IRSlot, accel xwiimote.Vec3) {
+func (ir *IRPointer) Step(slots [4]xwiimote.IRSlot, accel xwiimote.Vec3) Frame {
 	roll := math.Atan2(float64(accel.X), float64(accel.Z))
-	ir.UpdateRoll(slots, roll)
+	return ir.StepRoll(slots, roll)
 }
 
-// UpdateRoll processes new dots and roll values
+// StepRoll processes new dots and roll values
 //
 // You can calculate the roll from the accel as roll=atan2(x, z). If roll
 // data is unreliable (wiimote is significantly accelerating) then you should
 // supply the last known good value.
-func (ir *IRPointer) UpdateRoll(slots [4]xwiimote.IRSlot, roll float64) {
+func (ir *IRPointer) StepRoll(slots [4]xwiimote.IRSlot, roll float64) Frame {
 	raw, ok := ir.updateSensorbar(slots, roll)
 
 	if !ok {
 		if ir.errorCount >= ir.params.ErrorMaxCount {
-			ir.Valid = false
+			ir.frame.Valid = false
 		} else {
 			ir.errorCount++
 		}
-		return
-	}
-
-	if ir.errorCount >= ir.params.ErrorMaxCount {
-		ir.Position = raw
-		ir.Valid = true
+	} else if ir.errorCount >= ir.params.ErrorMaxCount {
+		ir.frame.Position = raw
+		ir.frame.Valid = true
 		ir.glitchCount = 0
+		ir.errorCount = 0
 	} else {
-		d := square(raw.X-ir.Position.X) + square(raw.Y-ir.Position.Y)
+		d := square(raw.X-ir.frame.Position.X) + square(raw.Y-ir.frame.Position.Y)
 		if d > ir.params.GlitchDistance {
 			if ir.glitchCount > ir.params.GlitchMaxCount {
 				ir.applySmoothing(raw)
@@ -599,10 +601,11 @@ func (ir *IRPointer) UpdateRoll(slots [4]xwiimote.IRSlot, roll float64) {
 			ir.applySmoothing(raw)
 			ir.glitchCount = 0
 		}
+		ir.errorCount = 0
 	}
 	if !ir.bounds.Empty() {
-		ir.NormalPosition = ir.bounds.Normal(ir.Position)
-		ir.InBounds = ir.bounds.Contains(ir.Position)
+		ir.frame.NormalPosition = ir.bounds.Normal(ir.frame.Position)
+		ir.frame.InBounds = ir.bounds.Contains(ir.frame.Position)
 	}
-	ir.errorCount = 0
+	return ir.frame
 }

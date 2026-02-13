@@ -206,18 +206,18 @@ func TestUpdateSensorbar_NoDotsHealthTransitions(t *testing.T) {
 	if ok {
 		t.Fatalf("expected ok=false with no dots, got ok=true raw=%v", raw)
 	}
-	if ir.Health != IRDead {
-		t.Fatalf("expected Health=IRDead, got %v", ir.Health)
+	if ir.frame.Health != IRDead {
+		t.Fatalf("expected Health=IRDead, got %v", ir.frame.Health)
 	}
 
 	// If we previously had a signal, losing all dots should transition to IRLost.
-	ir.Health = IRGood
+	ir.frame.Health = IRGood
 	raw, ok = ir.updateSensorbar(mkSlots(), 0)
 	if ok {
 		t.Fatalf("expected ok=false with no dots, got ok=true raw=%v", raw)
 	}
-	if ir.Health != IRLost {
-		t.Fatalf("expected Health=IRLost after losing signal, got %v", ir.Health)
+	if ir.frame.Health != IRLost {
+		t.Fatalf("expected Health=IRLost after losing signal, got %v", ir.frame.Health)
 	}
 }
 
@@ -234,11 +234,11 @@ func TestUpdateSensorbar_TwoDotsGivesGoodAndDistance(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected ok=true, got ok=false")
 	}
-	if ir.Health != IRGood {
-		t.Fatalf("expected Health=IRGood, got %v", ir.Health)
+	if ir.frame.Health != IRGood {
+		t.Fatalf("expected Health=IRGood, got %v", ir.frame.Health)
 	}
-	if ir.Distance <= 0 {
-		t.Fatalf("expected positive Distance, got %v", ir.Distance)
+	if ir.frame.Distance <= 0 {
+		t.Fatalf("expected positive Distance, got %v", ir.frame.Distance)
 	}
 	if math.Abs(raw.Y) > 1e-6 {
 		t.Fatalf("expected raw.Y ~ 0, got %v", raw.Y)
@@ -446,19 +446,19 @@ func TestUpdateRoll_ErrorDropoutSetsPositionNil(t *testing.T) {
 		mkSlotValid(400, 384),
 		mkSlotValid(624, 384),
 	)
-	ir.UpdateRoll(okSlots, 0)
-	if !ir.Valid {
+	ir.StepRoll(okSlots, 0)
+	if !ir.frame.Valid {
 		t.Fatalf("expected Position initialized")
 	}
 
 	// After enough consecutive failures, Position should be dropped (nil).
 	none := mkSlots()
-	ir.UpdateRoll(none, 0)
-	ir.UpdateRoll(none, 0)
-	ir.UpdateRoll(none, 0)
-	ir.UpdateRoll(none, 0)
+	ir.StepRoll(none, 0)
+	ir.StepRoll(none, 0)
+	ir.StepRoll(none, 0)
+	ir.StepRoll(none, 0)
 
-	if !ir.Valid {
-		t.Fatalf("expected valid=true enough errors, got %v", ir.Valid)
+	if !ir.frame.Valid {
+		t.Fatalf("expected valid=true enough errors, got %v", ir.frame.Valid)
 	}
 }
