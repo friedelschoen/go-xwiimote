@@ -202,6 +202,10 @@ var DefaultParams = Params{
 	GlitchDistance: (150.0 * 150.0),
 }
 
+type Smoother interface {
+	Smooth(raw FVec2, valid bool)
+}
+
 // IRPointer holds the current state of the pointer. The smoothed position is
 // roughly in the range (-512..512) for both X and Y, where 0 is center and
 // 512 is about the maximum offset. The actual returned
@@ -287,7 +291,6 @@ func (ir *IRPointer) findCanditates(dots, accDots []FVec2, roll float64) []Senso
 	var candidates [6]SensorBar
 	l := 0
 	for first := 0; first < (len(dots) - 1); first++ {
-	candLoop:
 		for second := (first + 1); second < len(dots); second++ {
 			// order the dots leftmost first into cand
 			// storing both the raw dots and the accel-rotated dots
@@ -326,6 +329,7 @@ func (ir *IRPointer) findCanditates(dots, accDots []FVec2, roll float64) []Senso
 
 			// middle dot check. If there's another source somewhere in the
 			// middle of this candidate, then this can't be a sensor bar
+			isBar := true
 			for i := range dots {
 				var wadj, hadj float64
 				if i == first || i == second {
@@ -339,8 +343,13 @@ func (ir *IRPointer) findCanditates(dots, accDots []FVec2, roll float64) []Senso
 					((cand.rotDots[1].X - wadj) > tdot[0].X) &&
 					((cand.rotDots[0].Y + hadj) > tdot[0].Y) &&
 					((cand.rotDots[0].Y - hadj) < tdot[0].Y) {
-					continue candLoop
+					isBar = false
+					break
 				}
+			}
+			// failed middle dot check
+			if !isBar {
+				continue
 			}
 			cand.score = 1 / (cand.rotDots[1].X - cand.rotDots[0].X)
 
