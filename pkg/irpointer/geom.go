@@ -26,26 +26,37 @@ func (r FRect) Empty() bool {
 	return r.Max.X <= r.Min.X || r.Max.Y <= r.Min.Y
 }
 
-func (r FRect) Normal(p FVec2) FVec2 {
-	if r.Empty() {
+func (r FRect) Translate(p FVec2, dst FRect, clamp bool) FVec2 {
+	if r.Empty() || dst.Empty() {
 		return FVec2{}
 	}
-	if p.X < r.Min.X {
-		p.X = r.Min.X
-	} else if p.X >= r.Max.X-1 {
-		p.X = r.Max.X
+
+	if clamp {
+		if p.X < r.Min.X {
+			p.X = r.Min.X
+		} else if p.X > r.Max.X {
+			p.X = r.Max.X
+		}
+		if p.Y < r.Min.Y {
+			p.Y = r.Min.Y
+		} else if p.Y > r.Max.Y {
+			p.Y = r.Max.Y
+		}
 	}
-	if p.Y < r.Min.Y {
-		p.Y = r.Min.Y
-	} else if p.Y >= r.Max.Y {
-		p.Y = r.Max.Y - 1
+	if r == dst {
+		return p
 	}
 
+	// Normaliseer naar 0..1 binnen source
 	w := r.Width()
 	h := r.Height()
 
-	x := (p.X - r.Min.X) / w
-	y := (p.Y - r.Min.Y) / h
+	nx := (p.X - r.Min.X) / w
+	ny := (p.Y - r.Min.Y) / h
 
-	return FVec2{X: x*2 - 1, Y: y*2 - 1}
+	// Projecteer naar destination
+	dx := dst.Min.X + nx*dst.Width()
+	dy := dst.Min.Y + ny*dst.Height()
+
+	return FVec2{X: dx, Y: dy}
 }

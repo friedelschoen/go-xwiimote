@@ -111,99 +111,6 @@ type Frame struct {
 	Valid bool
 	// Smoothed coordinate
 	Position FVec2
-	// Normalized coordinates between -1 .. 1, unused is bounds is not supplied
-	NormalPosition FVec2
-	// If the pointer currently is inside scope, unused is bounds is not supplied
-	InBounds bool
-}
-
-type Params struct {
-	// Height is half-height of the IR sensor if half-width is 1
-	Height float64
-
-	// MaxSbSlope is maximum sensor bar slope
-	MaxSbSlope float64
-
-	// MinSbWidth is minimum sensor bar width in view, relative to half of the IR sensor area
-	MinSbWidth float64
-
-	// SbWidth is physical dimensions center to center of emitters
-	SbWidth float64
-
-	// SbDotWidth is half-width of emitters
-	SbDotWidth float64
-
-	// SbDotHeight is half-height of emitters (with some tolerance)
-	SbDotHeight float64
-
-	// dots further out than these coords are allowed to not be picked up
-	// otherwise assume something's wrong
-	SbOffScreenX float64
-	SbOffScreenY float64
-
-	// SbSingleNoGuessDistance is a point and if it's closer to one of the previous SB points
-	// when it reappears, consider it the same instead of trying to guess
-	// which one of the two it is
-	SbSingleNoGuessDistance float64
-
-	// WiimoteFOVCoefficient is distance from the center of the FOV to the left or right edge,
-	// when the wiimote is at one meter
-	WiimoteFOVCoefficient float64
-
-	SmootherRadius float64
-	SmootherSpeed  float64
-
-	// SmootherDeadzone is distance between old and new value where nothing should change
-	SmootherDeadzone float64
-
-	// ErrorMaxCount is max number of errors before cooked data drops out
-	ErrorMaxCount int
-
-	// GlitchMaxCount is max number of glitches before cooked data updates
-	GlitchMaxCount int
-
-	// GlitchDistance is squared delta over which we consider something a glitch
-	GlitchDistance float64
-}
-
-var DefaultParams = Params{
-	Height: 384.0 / 512.0,
-
-	MaxSbSlope: 0.7, // : tan(35 degrees)
-
-	MinSbWidth: 0.1,
-
-	SbWidth: 19.5, // cm
-
-	SbDotWidth: 2.25, // cm
-
-	SbDotHeight: 1.0, // cm
-
-	SbOffScreenX: 0.0,
-	SbOffScreenY: 0.0,
-
-	// SbOffScreenX :  0.8f,
-	// SbOffScreenY :  (0.8f * Height),
-	// disable, may be doing more harm than good due to sensor pickup glitches
-
-	SbSingleNoGuessDistance: (100.0 * 100.0),
-
-	WiimoteFOVCoefficient: 0.39, // meter
-
-	SmootherRadius: 8.0,
-	SmootherSpeed:  0.25,
-
-	SmootherDeadzone: 2.5, // pixels
-
-	ErrorMaxCount: 8,
-
-	GlitchMaxCount: 5,
-
-	GlitchDistance: (150.0 * 150.0),
-}
-
-type Smoother interface {
-	Smooth(raw FVec2, valid bool)
 }
 
 // IRPointer holds the current state of the pointer. The smoothed position is
@@ -259,27 +166,39 @@ type Smoother interface {
 // bar, and a positive Y when pointing under the sensor bar, with 0,0
 // corresponding to pointing directly at the sensor bar.
 type IRPointer struct {
-	params *Params
-	bounds FRect
-	frame  Frame
+	// Height is half-height of the IR sensor if half-width is 1
+	Height float64
 
-	errorCount  int // Error count from smoothing algorithm
-	glitchCount int // Glitch count from smoothing algorithm
-}
+	// MaxSbSlope is maximum sensor bar slope
+	MaxSbSlope float64
 
-// NewIRPointer allocates a new IRPointer. params can alter some functionality
-// but can also be nil'ed to use default parameters
-// bounds can be proviced to receive a normalized position or left default to disable normalization
-func NewIRPointer(params *Params, bounds FRect) *IRPointer {
-	ir := &IRPointer{}
-	ir.bounds = bounds
-	if params != nil {
-		ir.params = params
-	} else {
-		ir.params = &DefaultParams
-	}
-	ir.errorCount = ir.params.ErrorMaxCount
-	return ir
+	// MinSbWidth is minimum sensor bar width in view, relative to half of the IR sensor area
+	MinSbWidth float64
+
+	// SbWidth is physical dimensions center to center of emitters
+	SbWidth float64
+
+	// SbDotWidth is half-width of emitters
+	SbDotWidth float64
+
+	// SbDotHeight is half-height of emitters (with some tolerance)
+	SbDotHeight float64
+
+	// dots further out than these coords are allowed to not be picked up
+	// otherwise assume something's wrong
+	SbOffScreenX float64
+	SbOffScreenY float64
+
+	// SbSingleNoGuessDistance is a point and if it's closer to one of the previous SB points
+	// when it reappears, consider it the same instead of trying to guess
+	// which one of the two it is
+	SbSingleNoGuessDistance float64
+
+	// WiimoteFOVCoefficient is distance from the center of the FOV to the left or right edge,
+	// when the wiimote is at one meter
+	WiimoteFOVCoefficient float64
+
+	frame Frame
 }
 
 func (ir *IRPointer) findCanditates(dots, accDots []FVec2, roll float64) []SensorBar {
@@ -312,7 +231,7 @@ func (ir *IRPointer) findCanditates(dots, accDots []FVec2, roll float64) []Senso
 			}
 
 			// check angle
-			if math.Abs(difference.Y/difference.X) > ir.params.MaxSbSlope {
+			if math.Abs(difference.Y/difference.X) > ir.MaxSbSlope {
 				continue
 			}
 			// rotate to the true sensor bar angle
@@ -323,7 +242,7 @@ func (ir *IRPointer) findCanditates(dots, accDots []FVec2, roll float64) []Senso
 			difference.X = cand.rotDots[1].X - cand.rotDots[0].X
 
 			// check distance
-			if difference.X < ir.params.MinSbWidth {
+			if difference.X < ir.MinSbWidth {
 				continue
 			}
 
@@ -335,8 +254,8 @@ func (ir *IRPointer) findCanditates(dots, accDots []FVec2, roll float64) []Senso
 				if i == first || i == second {
 					continue
 				}
-				hadj = ir.params.SbDotHeight / ir.params.SbWidth * difference.X
-				wadj = ir.params.SbDotWidth / ir.params.SbWidth * difference.X
+				hadj = ir.SbDotHeight / ir.SbWidth * difference.X
+				wadj = ir.SbDotWidth / ir.SbWidth * difference.X
 				var tdot [1]FVec2
 				rotateDots(tdot[:], dots[i:i+1], cand.Angle)
 				if ((cand.rotDots[0].X + wadj) < tdot[0].X) &&
@@ -388,7 +307,7 @@ func (ir *IRPointer) guessSingle(dots, accDots []FVec2, roll float64) (sb Sensor
 			}
 		}
 		if ir.frame.Health != IRLost ||
-			best < ir.params.SbSingleNoGuessDistance {
+			best < ir.SbSingleNoGuessDistance {
 			// now work out where the other dot would be, in the acc
 			// frame
 			sb.accDots[closestTo] = accDots[closest]
@@ -400,8 +319,8 @@ func (ir *IRPointer) guessSingle(dots, accDots []FVec2, roll float64) (sb Sensor
 				accDots[closest].Y)
 			// get the raw frame
 			rotateDots(sb.dots[:], sb.accDots[:], -roll)
-			if (math.Abs(sb.dots[closestTo^1].X) < ir.params.SbOffScreenX) &&
-				(math.Abs(sb.dots[closestTo^1].Y) < ir.params.SbOffScreenY) {
+			if (math.Abs(sb.dots[closestTo^1].X) < ir.SbOffScreenX) &&
+				(math.Abs(sb.dots[closestTo^1].Y) < ir.SbOffScreenY) {
 				// this dot should be visible but isn't, since the
 				// candidate section failed. fall through and try to
 				// pick out the sensor bar without previous information
@@ -417,7 +336,7 @@ func (ir *IRPointer) guessSingle(dots, accDots []FVec2, roll float64) (sb Sensor
 		}
 		// try to find the dot closest to the sensor edge
 		for i, dot := range dots {
-			d = min(1.0-math.Abs(dot.X), ir.params.Height-math.Abs(dot.Y))
+			d = min(1.0-math.Abs(dot.X), ir.Height-math.Abs(dot.Y))
 			if d < best {
 				best = d
 				closest = i
@@ -434,7 +353,7 @@ func (ir *IRPointer) guessSingle(dots, accDots []FVec2, roll float64) (sb Sensor
 				ir.frame.accDots[i].Y +
 				accDots[closest].Y
 			rotateDots(sbx[i].dots[:], sbx[i].accDots[:], -roll)
-			dx[i] = max(math.Abs(sbx[i].dots[i^1].X), math.Abs(sbx[i].dots[i^1].Y/ir.params.Height))
+			dx[i] = max(math.Abs(sbx[i].dots[i^1].X), math.Abs(sbx[i].dots[i^1].Y/ir.Height))
 		}
 		if dx[0] > dx[1] {
 			sb = sbx[0]
@@ -502,23 +421,6 @@ func (ir *IRPointer) updateSensorbar(slots [4]xwiimote.IRSlot, roll float64) (ra
 	return
 }
 
-func (ir *IRPointer) applySmoothing(raw FVec2) {
-	dx := raw.X - ir.frame.Position.X
-	dy := raw.Y - ir.frame.Position.Y
-	d := math.Sqrt(square(dx) + square(dy))
-	if d <= ir.params.SmootherDeadzone {
-		return
-	}
-	if d < ir.params.SmootherRadius {
-		ir.frame.Position.X += dx * ir.params.SmootherSpeed
-		ir.frame.Position.Y += dy * ir.params.SmootherSpeed
-	} else {
-		theta := math.Atan2(dy, dx)
-		ir.frame.Position.X = raw.X - math.Cos(theta)*ir.params.SmootherRadius
-		ir.frame.Position.Y = raw.Y - math.Sin(theta)*ir.params.SmootherRadius
-	}
-}
-
 // Step processes new dots and acceleration values
 //
 // If acceleration data is unreliable (wiimote is significantly
@@ -534,37 +436,6 @@ func (ir *IRPointer) Step(slots [4]xwiimote.IRSlot, accel xwiimote.Vec3) Frame {
 // data is unreliable (wiimote is significantly accelerating) then you should
 // supply the last known good value.
 func (ir *IRPointer) StepRoll(slots [4]xwiimote.IRSlot, roll float64) Frame {
-	raw, ok := ir.updateSensorbar(slots, roll)
-
-	if !ok {
-		if ir.errorCount >= ir.params.ErrorMaxCount {
-			ir.frame.Valid = false
-		} else {
-			ir.errorCount++
-		}
-	} else if ir.errorCount >= ir.params.ErrorMaxCount {
-		ir.frame.Position = raw
-		ir.frame.Valid = true
-		ir.glitchCount = 0
-		ir.errorCount = 0
-	} else {
-		d := square(raw.X-ir.frame.Position.X) + square(raw.Y-ir.frame.Position.Y)
-		if d > ir.params.GlitchDistance {
-			if ir.glitchCount > ir.params.GlitchMaxCount {
-				ir.applySmoothing(raw)
-				ir.glitchCount = 0
-			} else {
-				ir.glitchCount++
-			}
-		} else {
-			ir.applySmoothing(raw)
-			ir.glitchCount = 0
-		}
-		ir.errorCount = 0
-	}
-	if !ir.bounds.Empty() {
-		ir.frame.NormalPosition = ir.bounds.Normal(ir.frame.Position)
-		ir.frame.InBounds = ir.bounds.Contains(ir.frame.Position)
-	}
+	ir.frame.Position, ir.frame.Valid = ir.updateSensorbar(slots, roll)
 	return ir.frame
 }
