@@ -3,6 +3,7 @@ package xwiimote
 import (
 	"os"
 	"syscall"
+	"time"
 
 	"github.com/friedelschoen/go-xwiimote/pkg/udev"
 )
@@ -113,6 +114,7 @@ func (mon *Monitor) Poll() (*Device, bool, error) {
 	if (dev.Action() != "" && dev.Action() != "add") || dev.Driver() != "wiimote" || dev.Subsystem() != "hid" {
 		return nil, false, ErrPollAgain
 	}
+	time.Sleep(50 * time.Millisecond)
 	iff, err := newDeviceFromUdev(dev)
 	return iff, false, err
 }
