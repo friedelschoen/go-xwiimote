@@ -31,6 +31,7 @@ type Interface interface {
 	fd() *os.File
 	open(dev *Device, node string, wr bool) error
 	close() error
+	acceptEvent(ts time.Time, event, code uint16, value int32) (Event, error)
 }
 
 type commonInterface struct {
@@ -194,11 +195,11 @@ func (InterfaceCore) Name() string {
 
 func (iface *InterfaceCore) acceptEvent(ts time.Time, event, code uint16, value int32) (Event, error) {
 	if event != C.EV_KEY {
-		return nil, nil
+		return nil, syscall.EINVAL
 	}
 
 	if value < 0 || value > 2 {
-		return nil, nil
+		return nil, syscall.EINVAL
 	}
 
 	var key Key
@@ -226,7 +227,7 @@ func (iface *InterfaceCore) acceptEvent(ts time.Time, event, code uint16, value 
 	case C.BTN_MODE:
 		key = KeyHome
 	default:
-		return nil, nil
+		return nil, syscall.EINVAL
 	}
 
 	var ev EventKey
@@ -257,7 +258,7 @@ func (iface *InterfaceAccel) acceptEvent(ts time.Time, event, code uint16, value
 	}
 
 	if event != C.EV_ABS {
-		return nil, nil
+		return nil, syscall.EINVAL
 	}
 
 	switch code {
@@ -291,7 +292,7 @@ func (iface *InterfaceIR) acceptEvent(ts time.Time, event, code uint16, value in
 	}
 
 	if event != C.EV_ABS {
-		return nil, nil
+		return nil, syscall.EINVAL
 	}
 
 	switch code {
@@ -354,7 +355,7 @@ func (iface *InterfaceMotionPlus) acceptEvent(ts time.Time, event, code uint16, 
 	}
 
 	if event != C.EV_ABS {
-		return nil, nil
+		return nil, syscall.EINVAL
 	}
 
 	switch code {
@@ -384,7 +385,7 @@ func (iface *InterfaceNunchuck) acceptEvent(ts time.Time, event, code uint16, va
 	switch event {
 	case C.EV_KEY:
 		if value < 0 || value > 2 {
-			return nil, nil
+			return nil, syscall.EINVAL
 		}
 		var key Key
 		switch code {
@@ -393,7 +394,7 @@ func (iface *InterfaceNunchuck) acceptEvent(ts time.Time, event, code uint16, va
 		case C.BTN_Z:
 			key = KeyZ
 		default:
-			return nil, nil
+			return nil, syscall.EINVAL
 		}
 
 		var ev EventNunchukKey
@@ -424,7 +425,7 @@ func (iface *InterfaceNunchuck) acceptEvent(ts time.Time, event, code uint16, va
 		return &ev, nil
 	}
 
-	return nil, nil
+	return nil, syscall.EINVAL
 }
 
 type InterfaceClassicController struct {
@@ -444,7 +445,7 @@ func (iface *InterfaceClassicController) acceptEvent(ts time.Time, event, code u
 	switch event {
 	case C.EV_KEY:
 		if value < 0 || value > 2 {
-			return nil, nil
+			return nil, syscall.EINVAL
 		}
 
 		var key Key
@@ -518,17 +519,17 @@ func (iface *InterfaceClassicController) acceptEvent(ts time.Time, event, code u
 	return nil, nil
 }
 
-type balanceboardInterface struct {
+type InterfaceBalanceBoard struct {
 	commonInterface
 
 	weights [4]int32
 }
 
-func (balanceboardInterface) Name() string {
+func (InterfaceBalanceBoard) Name() string {
 	return "Nintendo Wii Remote Balance Board"
 }
 
-func (iface *balanceboardInterface) acceptEvent(ts time.Time, event, code uint16, value int32) (Event, error) {
+func (iface *InterfaceBalanceBoard) acceptEvent(ts time.Time, event, code uint16, value int32) (Event, error) {
 	if event == C.EV_SYN {
 		var ev EventBalanceBoard
 		ev.iface = iface
@@ -792,7 +793,7 @@ func (iface *InterfaceGuitar) acceptEvent(ts time.Time, event, code uint16, valu
 	return nil, nil
 }
 
-func GetInterface(name string) Interface {
+func InterfaceFromName(name string) Interface {
 	switch name {
 	case "Nintendo Wii Remote":
 		return &InterfaceCore{}
@@ -807,7 +808,7 @@ func GetInterface(name string) Interface {
 	case "Nintendo Wii Remote Classic Controller":
 		return &InterfaceClassicController{}
 	case "Nintendo Wii Remote Balance Board":
-		return &balanceboardInterface{}
+		return &InterfaceBalanceBoard{}
 	case "Nintendo Wii Remote Pro Controller":
 		return &InterfaceProController{}
 	case "Nintendo Wii Remote Drums":
@@ -819,16 +820,11 @@ func GetInterface(name string) Interface {
 	}
 }
 
-type eventInterface interface {
-	Interface
-	acceptEvent(ts time.Time, event, code uint16, value int32) (Event, error)
-}
-
 func readEvent(fd io.Reader) (*C.struct_input_event, error) {
 	var ev C.struct_input_event
 	buf := unsafe.Slice((*byte)(unsafe.Pointer(&ev)), unsafe.Sizeof(ev))
 
-	n, err := io.ReadFull(fd, buf)
+	n, err := fd.Read(buf)
 	if err != nil {
 		return nil, err
 	}
@@ -841,7 +837,7 @@ func readEvent(fd io.Reader) (*C.struct_input_event, error) {
 	return &ev, nil
 }
 
-func dispatchEvent(iff eventInterface) (Event, error) {
+func dispatchEvent(iff Interface) (Event, error) {
 	for {
 		input, err := readEvent(iff.fd())
 		if err != nil {

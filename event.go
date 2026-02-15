@@ -388,9 +388,7 @@ func (dev *Device) dispatchEvent(evFd int32, pollEv uint32) (Event, error) {
 		if iff.fd().Fd() != uintptr(evFd) {
 			continue
 		}
-		if eif, ok := iff.(eventInterface); ok {
-			return dispatchEvent(eif)
-		}
+		return dispatchEvent(iff)
 	}
 
 	return nil, nil
