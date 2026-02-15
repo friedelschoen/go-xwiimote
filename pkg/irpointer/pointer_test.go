@@ -199,9 +199,9 @@ func TestUpdateSensorbar_NoDotsHealthTransitions(t *testing.T) {
 	ir := NewIRPointer()
 
 	// Starting IRDead with no dots should remain IRDead and report ok=false.
-	raw, ok := ir.updateSensorbar(mkSlots(), 0)
-	if ok {
-		t.Fatalf("expected ok=false with no dots, got ok=true raw=%v", raw)
+	ir.updateSensorbar(mkSlots(), 0)
+	if ir.frame.Valid {
+		t.Fatalf("expected ok=false with no dots, got ok=true raw=%v", ir.frame.Position)
 	}
 	if ir.frame.Health != IRDead {
 		t.Fatalf("expected Health=IRDead, got %v", ir.frame.Health)
@@ -209,9 +209,9 @@ func TestUpdateSensorbar_NoDotsHealthTransitions(t *testing.T) {
 
 	// If we previously had a signal, losing all dots should transition to IRLost.
 	ir.frame.Health = IRGood
-	raw, ok = ir.updateSensorbar(mkSlots(), 0)
-	if ok {
-		t.Fatalf("expected ok=false with no dots, got ok=true raw=%v", raw)
+	ir.updateSensorbar(mkSlots(), 0)
+	if ir.frame.Valid {
+		t.Fatalf("expected ok=false with no dots, got ok=true raw=%v", ir.frame.Position)
 	}
 	if ir.frame.Health != IRLost {
 		t.Fatalf("expected Health=IRLost after losing signal, got %v", ir.frame.Health)
@@ -227,8 +227,8 @@ func TestUpdateSensorbar_TwoDotsGivesGoodAndDistance(t *testing.T) {
 		mkSlotValid(624, 384),
 	)
 
-	raw, ok := ir.updateSensorbar(slots, 0)
-	if !ok {
+	ir.updateSensorbar(slots, 0)
+	if !ir.frame.Valid {
 		t.Fatalf("expected ok=true, got ok=false")
 	}
 	if ir.frame.Health != IRGood {
@@ -237,8 +237,8 @@ func TestUpdateSensorbar_TwoDotsGivesGoodAndDistance(t *testing.T) {
 	if ir.frame.Distance <= 0 {
 		t.Fatalf("expected positive Distance, got %v", ir.frame.Distance)
 	}
-	if math.Abs(raw.Y) > 1e-6 {
-		t.Fatalf("expected raw.Y ~ 0, got %v", raw.Y)
+	if math.Abs(ir.frame.Position.Y) > 1e-6 {
+		t.Fatalf("expected raw.Y ~ 0, got %v", ir.frame.Position.Y)
 	}
 }
 

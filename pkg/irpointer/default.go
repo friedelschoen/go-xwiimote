@@ -1,5 +1,7 @@
 package irpointer
 
+import "time"
+
 func NewIRPointer() *IRPointer {
 	return &IRPointer{
 		Height: 384.0 / 512.0,
@@ -45,6 +47,15 @@ func NewMarcanSmoothing() *MarcanSmoothingFilter {
 		SmootherRadius:   8.0,
 		SmootherSpeed:    0.25,
 		SmootherDeadzone: 2.5, // pixels
+	}
+}
+
+func NewOneEuroSmoothing() *OneEuroSmoothingFilter {
+	return &OneEuroSmoothingFilter{
+		MinCutoff:  1.2,
+		Beta:       0.04,
+		DCutoff:    1.0,
+		ClampMaxDt: 100 * time.Millisecond,
 	}
 }
 

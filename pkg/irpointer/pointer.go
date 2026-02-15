@@ -34,7 +34,9 @@ package irpointer
 //go:generate morestringer -type IRHealth -output stringer.go
 
 import (
+	"cmp"
 	"math"
+	"slices"
 
 	"github.com/friedelschoen/go-xwiimote"
 )
@@ -372,7 +374,7 @@ func (ir *IRPointer) guessSingle(dots, accDots []FVec2, roll float64) (sb Sensor
 
 // raw      *FVec2  // Raw coordinate (-512..512, 0 is center)
 // distance float64 // Pixel width of the sensor bar
-func (ir *IRPointer) updateSensorbar(slots [4]xwiimote.IRSlot, roll float64) (raw FVec2, ok bool) {
+func (ir *IRPointer) updateSensorbar(slots [4]xwiimote.IRSlot, roll float64) {
 	dots := findDots(slots)
 
 	// nothing to track
@@ -380,7 +382,7 @@ func (ir *IRPointer) updateSensorbar(slots [4]xwiimote.IRSlot, roll float64) (ra
 		if ir.frame.Health != IRDead {
 			ir.frame.Health = IRLost
 		}
-		ok = false
+		ir.frame.Valid = false
 		return
 	}
 
@@ -389,36 +391,25 @@ func (ir *IRPointer) updateSensorbar(slots [4]xwiimote.IRSlot, roll float64) (ra
 	rotateDots(accDots[:], dots, roll)
 
 	candidates := ir.findCanditates(dots, accDots[:len(dots)], roll)
-	switch len(candidates) {
-	case 0:
-		var sb SensorBar
-		sb, ok = ir.guessSingle(dots, accDots[:len(dots)], roll)
+	if len(candidates) == 0 {
+		sb, ok := ir.guessSingle(dots, accDots[:len(dots)], roll)
 		if !ok {
+			ir.frame.Valid = false
 			return
 		}
 		ir.frame.SensorBar = sb
 		ir.frame.Health = IRSingle
-	case 1:
-		ir.frame.SensorBar = candidates[0]
-		ir.frame.Health = IRGood
-	case 2:
-		ir.frame.SensorBar = candidates[0]
-		// search for best candidate
-		for i := 1; i < len(candidates); i++ {
-			if candidates[i].score > ir.frame.SensorBar.score {
-				ir.frame.SensorBar = candidates[i]
-			}
-		}
+	} else {
+		ir.frame.SensorBar = slices.MaxFunc(candidates, func(left, right SensorBar) int {
+			return cmp.Compare(left.score, right.score)
+		})
 		ir.frame.Health = IRGood
 	}
 	ir.frame.Distance = 50 / (ir.frame.rotDots[1].X - ir.frame.rotDots[0].X)
 
-	raw = FVec2{
-		X: (ir.frame.rotDots[0].X + ir.frame.rotDots[1].X) / 2 * 512.0,
-		Y: (ir.frame.rotDots[0].Y + ir.frame.rotDots[1].Y) / 2 * 512.0,
-	}
-	ok = true
-	return
+	ir.frame.Position.X = (ir.frame.rotDots[0].X + ir.frame.rotDots[1].X) / 2 * 512.0
+	ir.frame.Position.Y = (ir.frame.rotDots[0].Y + ir.frame.rotDots[1].Y) / 2 * 512.0
+	ir.frame.Valid = true
 }
 
 // Step processes new dots and acceleration values
@@ -436,6 +427,6 @@ func (ir *IRPointer) Step(slots [4]xwiimote.IRSlot, accel xwiimote.Vec3) Frame {
 // data is unreliable (wiimote is significantly accelerating) then you should
 // supply the last known good value.
 func (ir *IRPointer) StepRoll(slots [4]xwiimote.IRSlot, roll float64) Frame {
-	ir.frame.Position, ir.frame.Valid = ir.updateSensorbar(slots, roll)
+	ir.updateSensorbar(slots, roll)
 	return ir.frame
 }
