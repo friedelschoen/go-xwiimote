@@ -69,6 +69,14 @@ func watchDevice(dev *xwiimote.Device) {
 				mouse.Key(vinput.ButtonBack, ev.State != xwiimote.StateReleased)
 			case xwiimote.KeyRight:
 				mouse.Key(vinput.ButtonForward, ev.State != xwiimote.StateReleased)
+			case xwiimote.KeyMinus:
+				mouse.Key(vinput.KeyVolumedown, ev.State != xwiimote.StateReleased)
+			case xwiimote.KeyPlus:
+				mouse.Key(vinput.KeyVolumeup, ev.State != xwiimote.StateReleased)
+			case xwiimote.KeyTwo:
+				mouse.Key(vinput.KeyPlaypause, ev.State != xwiimote.StateReleased)
+			case xwiimote.KeyOne:
+				mouse.Key(vinput.KeyNext, ev.State != xwiimote.StateReleased)
 			case xwiimote.KeyDown:
 				if ev.State == xwiimote.StatePressed {
 					if frame.Valid {
