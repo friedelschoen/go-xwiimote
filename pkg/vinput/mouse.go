@@ -40,11 +40,13 @@ func CreateMouse(name string, xabs, yabs Range, opts ...UinputOption) (*Mouse, e
 		return nil, fmt.Errorf("failed to register key device: %w", err)
 	}
 
-	// register button events (in order to enable left, right and middle click)
-	err = dev.register(uiSetKeyBit, uintptr(ButtonLeft), uintptr(ButtonRight), uintptr(ButtonMiddle))
-	if err != nil {
-		dev.Close()
-		return nil, fmt.Errorf("failed to register key: %w", err)
+	// register button events
+	for i := KeyReserved; i <= KeyMax; i++ {
+		err = dev.register(uiSetKeyBit, uintptr(i))
+		if err != nil {
+			dev.Close()
+			return nil, fmt.Errorf("failed to register key number %d: %v", i, err)
+		}
 	}
 
 	err = dev.register(uiSetRelBit, relX, relY, relWheel, relHWheel)
@@ -108,7 +110,7 @@ func (vRel *Mouse) Scroll(x, y int32) error {
 		errs[0] = vRel.emit(evRel, relHWheel, x)
 	}
 	if y != 0 {
-		errs[1] = vRel.emit(evRel, relHWheel, y)
+		errs[1] = vRel.emit(evRel, relWheel, y)
 	}
 	if err := errors.Join(errs[:]...); err != nil {
 		return err
