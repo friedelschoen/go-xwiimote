@@ -10,11 +10,8 @@ package xwiimote
 // unsigned int eviocgname(size_t sz) { return EVIOCGNAME(sz); }
 import "C"
 import (
-	"bytes"
-	"os"
 	"syscall"
 	"time"
-	"unsafe"
 )
 
 // cError takes an integer error code.
@@ -50,13 +47,4 @@ func ioctl(fd, cmd, ptr uintptr) error {
 		return nil
 	}
 	return err
-}
-
-func devname(fd *os.File) (string, error) {
-	var buffer [256]byte
-	if err := ioctl(fd.Fd(), uintptr(C.eviocgname(C.size_t(len(buffer)))), uintptr(unsafe.Pointer(&buffer[0]))); err != nil {
-		return "", err
-	}
-	length := bytes.IndexByte(buffer[:], 0)
-	return string(buffer[:length]), nil
 }

@@ -82,14 +82,6 @@ func (iff *commonInterface) open(dev *Device, node string, wr bool) error {
 		return err
 	}
 
-	// name, err := devname(fd)
-	// if err != nil {
-	// 	return err
-	// }
-	// if name != iff..Name() {
-	// 	return fmt.Errorf("device does not hold correct name: expected %q, got %q", iff.self.Name(), name)
-	// }
-
 	var ep syscall.EpollEvent
 	ep.Events = syscall.EPOLLIN
 	ep.Fd = int32(fd.Fd())
