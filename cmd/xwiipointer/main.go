@@ -59,8 +59,50 @@ func watchDevice(dev *xwiimote.Device) {
 		irpointer.NewRepeatFilter(),
 	}
 
-	var scroll *irpointer.FVec2
 	var frame irpointer.Frame
+	go func() {
+		blink := false
+		lostcount := 0
+		for {
+			blink = !blink
+
+			var leds xwiimote.Led
+			switch frame.Health {
+			case irpointer.IRLost:
+				if blink && lostcount <= 5 {
+					leds |= xwiimote.Led1
+					lostcount++
+				}
+			case irpointer.IRSingle:
+				leds |= xwiimote.Led1
+				lostcount = 0
+			case irpointer.IRGood:
+				leds |= xwiimote.Led1 | xwiimote.Led2
+				lostcount = 0
+			}
+
+			soc, err := dev.GetBattery()
+			if err != nil {
+				/* assume full */
+				soc = 100
+			}
+			switch {
+			case soc < 5:
+				if blink {
+					leds |= xwiimote.Led3
+				}
+			case soc < 25:
+				leds |= xwiimote.Led3
+			default:
+				leds |= xwiimote.Led3 | xwiimote.Led4
+			}
+
+			dev.SetLED(leds)
+			time.Sleep(500 * time.Millisecond)
+		}
+	}()
+
+	var scroll *irpointer.FVec2
 	go func() {
 		for {
 			if scroll == nil {
