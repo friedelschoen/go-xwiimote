@@ -86,7 +86,7 @@ func NewMonitor(typ MonitorType) (*Monitor, error) {
 // same descriptor.
 func (mon *Monitor) FD() int {
 	fd := mon.monitor.GetFD()
-	syscall.SetNonblock(fd, false)
+	syscall.SetNonblock(fd, true)
 	return fd
 }
 
