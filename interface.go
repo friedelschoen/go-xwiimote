@@ -5,6 +5,7 @@ import "C"
 import (
 	"io"
 	"os"
+	"path/filepath"
 	"syscall"
 	"time"
 	"unsafe"
@@ -179,7 +180,6 @@ func (dev *rumbleInterface) Rumble(state bool) error {
 		return io.ErrShortWrite
 	}
 	return nil
-
 }
 
 type InterfaceCore struct {
@@ -233,6 +233,18 @@ func (iface *InterfaceCore) acceptEvent(ts time.Time, event, code uint16, value 
 	ev.Code = key
 	ev.State = KeyState(value)
 	return &ev, nil
+}
+
+// Memory
+func (iface *InterfaceCore) Memory() (*Memory, error) {
+	id := filepath.Base(iface.dev.dev.Syspath())
+	path := filepath.Join(debugfs, "hid", id, "eeprom")
+	fd, err := syscall.Open(path, syscall.O_RDONLY, 0)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Memory{SysFile(fd)}, nil
 }
 
 type InterfaceAccel struct {

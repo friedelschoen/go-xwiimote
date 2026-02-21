@@ -15,6 +15,8 @@ import (
 	"github.com/friedelschoen/go-xwiimote/pkg/udev"
 )
 
+const debugfs = "/sys/kernel/debug"
+
 // Led described a Led of an device. The leds are counted left-to-right and can be OR'ed together.
 type Led uint
 
