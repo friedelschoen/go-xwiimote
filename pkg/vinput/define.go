@@ -1,6 +1,6 @@
 package vinput
 
-//go:generate morestringer -type Key -cnames -lookup {}ByName -output stringer.go
+//go:generate morestringer -lookup {}ByName -output stringer.go Key:cname
 // or stringer -type Key -output stringer.go
 
 // #include <linux/uinput.h>
