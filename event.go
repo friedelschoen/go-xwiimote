@@ -111,10 +111,17 @@ const (
 )
 
 // Vec2 represents a 2D point or vector to X and Y, may be interpreted different depending on the event .
-type Vec2 struct{ X, Y int32 }
+type Vec2 struct {
+	X int32 `json:"x"`
+	Y int32 `json:"y"`
+}
 
 // Vec3 represents a 3D point or vector to X, Y and Z, may be interpreted different depending on the event.
-type Vec3 struct{ X, Y, Z int32 }
+type Vec3 struct {
+	X int32 `json:"x"`
+	Y int32 `json:"y"`
+	Z int32 `json:"z"`
+}
 
 // Event interface describes an event fired by Device.Dispatch(),
 // consider using a type-switch to retrieve the specific event type and data
@@ -142,8 +149,8 @@ func (evt *commonEvent) Timestamp() time.Time {
 // HOME, ONE, TWO.
 type EventKey struct {
 	commonEvent
-	Code  Key
-	State KeyState
+	Code  Key      `json:"code"`
+	State KeyState `json:"state"`
 }
 
 // EventAccel provides accelerometer data.
@@ -151,7 +158,7 @@ type EventKey struct {
 // data!
 type EventAccel struct {
 	commonEvent
-	Accel Vec3
+	Accel Vec3 `json:"accel"`
 }
 
 // EventIR provides IR-camera events. The camera can track up two four IR
@@ -162,7 +169,7 @@ type EventAccel struct {
 // currently valid or whether it currently doesn't track any IR source.
 type EventIR struct {
 	commonEvent
-	Slots [4]IRSlot
+	Slots [4]IRSlot `json:"slots"`
 }
 
 // IRSlot describes Infra-Red Tracking on a WiiMote
@@ -179,14 +186,14 @@ func (slot IRSlot) Valid() bool {
 // for each of the four edges of the board.
 type EventBalanceBoard struct {
 	commonEvent
-	Weights [4]int32
+	Weights [4]int32 `json:"weights"`
 }
 
 // EventMotionPlus provides gyroscope events. These describe rotational speed, not
 // acceleration, of the motion-plus extension.
 type EventMotionPlus struct {
 	commonEvent
-	Speed Vec3
+	Speed Vec3 `json:"speed"`
 }
 
 // EventProControllerKey provides button events of the pro-controller
@@ -203,7 +210,7 @@ type EventProControllerKey struct {
 // reported via this event.
 type EventProControllerMove struct {
 	commonEvent
-	Sticks [2]Vec2
+	Sticks [2]Vec2 `json:"sticks"`
 }
 
 // EventWatch is sent whenever an extension was hotplugged (plugged or
@@ -244,10 +251,10 @@ type EventClassicControllerKey struct {
 // TL/TR buttons are always reported correctly.
 type EventClassicControllerMove struct {
 	commonEvent
-	StickLeft     Vec2
-	StickRight    Vec2
-	ShoulderLeft  int32
-	ShoulderRight int32
+	StickLeft     Vec2  `json:"stick_left"`
+	StickRight    Vec2  `json:"stick_right"`
+	ShoulderLeft  int32 `json:"shoulder_left"`
+	ShoulderRight int32 `json:"shoulder_right"`
 }
 
 // EventNunchukKey provides Nunchuk key events.
@@ -266,8 +273,8 @@ type EventNunchukKey struct {
 // array element contains the accelerometer information.
 type EventNunchukMove struct {
 	commonEvent
-	Stick Vec2
-	Accel Vec3
+	Stick Vec2 `json:"stick"`
+	Accel Vec3 `json:"accel"`
 }
 
 // EventDrumsKey provides Drums key events.
@@ -281,14 +288,14 @@ type EventDrumsKey struct {
 // Movement and pressure events for drums controllers.
 type EventDrumsMove struct {
 	commonEvent
-	Pad         Vec2
-	CymbalLeft  int32
-	CymbalRight int32
-	TomLeft     int32
-	TomRight    int32
-	TomFarRight int32
-	Bass        int32
-	HiHat       int32
+	Pad         Vec2  `json:"pad"`
+	CymbalLeft  int32 `json:"cymbal_left"`
+	CymbalRight int32 `json:"cymbal_right"`
+	TomLeft     int32 `json:"tom_left"`
+	TomRight    int32 `json:"tom_right"`
+	TomFarRight int32 `json:"tom_far_right"`
+	Bass        int32 `json:"bass"`
+	HiHat       int32 `json:"hihat"`
 }
 
 // EventGuitarKey provides Guitar key events
@@ -304,9 +311,9 @@ type EventGuitarKey struct {
 // Movement information for guitar controllers.
 type EventGuitarMove struct {
 	commonEvent
-	Stick     Vec2
-	WhammyBar int32
-	FretBar   int32
+	Stick     Vec2  `json:"stick"`
+	WhammyBar int32 `json:"whammy_bar"`
+	FretBar   int32 `json:"fret_bar"`
 }
 
 // EventGone provides Removal Event.

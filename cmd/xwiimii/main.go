@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/friedelschoen/go-xwiimote"
-	"github.com/friedelschoen/go-xwiimote/pkg/miidata"
+	"github.com/friedelschoen/go-xwiimote/pkg/eeprom"
 )
 
 func watchDevice(dev *xwiimote.Device) {
@@ -24,11 +24,12 @@ func watchDevice(dev *xwiimote.Device) {
 		log.Fatalln(err)
 	}
 	defer f.Close()
-	block, err := miidata.ReadMiiBlock(f)
+	block, err := eeprom.ReadMiiBlock(f)
 	if err != nil {
 		log.Fatalln(err)
 	}
-	for _, mii := range miidata.DecodeBlock(block) {
+	for slot := range block.MiiSlotSeq() {
+		mii := eeprom.DecodeMii(slot)
 		fmt.Printf("%q by %q\n", mii.Name, mii.CreatorName)
 	}
 }
