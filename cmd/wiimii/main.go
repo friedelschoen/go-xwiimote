@@ -7,14 +7,14 @@ import (
 	"os"
 	"time"
 
-	"github.com/friedelschoen/go-xwiimote"
-	"github.com/friedelschoen/go-xwiimote/pkg/eeprom"
+	"github.com/friedelschoen/go-wiimote"
+	"github.com/friedelschoen/go-wiimote/pkg/eeprom"
 )
 
-func watchDevice(dev *xwiimote.Device) {
+func watchDevice(dev *wiimote.Device) {
 	fmt.Printf("new device: %s\n", dev.String())
 	time.Sleep(100 * time.Millisecond)
-	coreif := xwiimote.InterfaceCore{}
+	coreif := wiimote.InterfaceCore{}
 	if err := dev.OpenInterfaces(true, &coreif); err != nil {
 		fmt.Fprintf(os.Stderr, "error: unable to open device: %s", err)
 	}
@@ -37,7 +37,7 @@ func watchDevice(dev *xwiimote.Device) {
 func main() {
 	flag.Parse()
 
-	monitor, err := xwiimote.NewMonitor(xwiimote.MonitorUdev)
+	monitor, err := wiimote.NewMonitor(wiimote.MonitorUdev)
 	if err != nil {
 		log.Fatalln("error: ", err)
 	}

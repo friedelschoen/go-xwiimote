@@ -1,11 +1,11 @@
-package xwiimote
+package wiimote
 
 import (
 	"os"
 	"syscall"
 	"time"
 
-	"github.com/friedelschoen/go-xwiimote/pkg/udev"
+	"github.com/friedelschoen/go-wiimote/pkg/udev"
 )
 
 // MonitorType describes how a monitor or enumerator should look for devices.
@@ -27,7 +27,7 @@ func (t MonitorType) Name() string {
 	}
 }
 
-// Monitor describes a monitor for xwiimote-devices. This includes currently available
+// Monitor describes a monitor for wiimote-devices. This includes currently available
 // but also hot-plugged devices.
 //
 // Monitors are not thread-safe.
@@ -93,7 +93,7 @@ func (mon *Monitor) FD() int {
 // Poll returns a single device-name on each call. A device-name is actually
 // an absolute sysfs path to the device's root-node. This is normally a path
 // to /sys/bus/hid/devices/[dev]/. You can use this path to create a new
-// struct xwii_iface object.
+// struct wii_iface object.
 //
 // After a monitor was created, this function returns all currently available
 // devices. After all devices have been returned. After that, this function polls the

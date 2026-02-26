@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/friedelschoen/go-xwiimote"
+	"github.com/friedelschoen/go-wiimote"
 )
 
 var (
@@ -18,38 +18,38 @@ var (
 )
 
 type eventBlock struct {
-	Type      string         `json:"type"`
-	Event     xwiimote.Event `json:"event"`
-	Id        string         `json:"id"`
-	Timestamp time.Time      `json:"timestamp"`
-	Interface string         `json:"interface"`
+	Type      string        `json:"type"`
+	Event     wiimote.Event `json:"event"`
+	Id        string        `json:"id"`
+	Timestamp time.Time     `json:"timestamp"`
+	Interface string        `json:"interface"`
 }
 
-func watchDevice(dev *xwiimote.Device, mu *sync.Mutex) {
+func watchDevice(dev *wiimote.Device, mu *sync.Mutex) {
 	fmt.Printf("new device: %s\n", dev.String())
 	time.Sleep(100 * time.Millisecond)
-	var ifs []xwiimote.Interface
-	ifs = append(ifs, &xwiimote.InterfaceCore{})
+	var ifs []wiimote.Interface
+	ifs = append(ifs, &wiimote.InterfaceCore{})
 	for name := range strings.SplitSeq(*openIf, ",") {
 		switch name {
 		case "accel":
-			ifs = append(ifs, &xwiimote.InterfaceAccel{})
+			ifs = append(ifs, &wiimote.InterfaceAccel{})
 		case "bb", "balanceboard":
-			ifs = append(ifs, &xwiimote.InterfaceBalanceBoard{})
+			ifs = append(ifs, &wiimote.InterfaceBalanceBoard{})
 		case "cc", "classiccontroller":
-			ifs = append(ifs, &xwiimote.InterfaceClassicController{})
+			ifs = append(ifs, &wiimote.InterfaceClassicController{})
 		case "drums":
-			ifs = append(ifs, &xwiimote.InterfaceDrums{})
+			ifs = append(ifs, &wiimote.InterfaceDrums{})
 		case "guitar":
-			ifs = append(ifs, &xwiimote.InterfaceGuitar{})
+			ifs = append(ifs, &wiimote.InterfaceGuitar{})
 		case "ir":
-			ifs = append(ifs, &xwiimote.InterfaceIR{})
+			ifs = append(ifs, &wiimote.InterfaceIR{})
 		case "mp", "motionplus":
-			ifs = append(ifs, &xwiimote.InterfaceMotionPlus{})
+			ifs = append(ifs, &wiimote.InterfaceMotionPlus{})
 		case "nunchuck":
-			ifs = append(ifs, &xwiimote.InterfaceNunchuck{})
+			ifs = append(ifs, &wiimote.InterfaceNunchuck{})
 		case "pc", "procontroller":
-			ifs = append(ifs, &xwiimote.InterfaceProController{})
+			ifs = append(ifs, &wiimote.InterfaceProController{})
 		}
 	}
 	if err := dev.OpenInterfaces(true, ifs...); err != nil {
@@ -62,7 +62,7 @@ func watchDevice(dev *xwiimote.Device, mu *sync.Mutex) {
 		if err != nil {
 			log.Printf("unable to poll event: %v\n", err)
 		}
-		if _, ok := ev.(*xwiimote.EventGone); ok {
+		if _, ok := ev.(*wiimote.EventGone); ok {
 			return
 		}
 
@@ -87,7 +87,7 @@ func watchDevice(dev *xwiimote.Device, mu *sync.Mutex) {
 func main() {
 	flag.Parse()
 
-	monitor, err := xwiimote.NewMonitor(xwiimote.MonitorUdev)
+	monitor, err := wiimote.NewMonitor(wiimote.MonitorUdev)
 	if err != nil {
 		log.Fatalln("error: ", err)
 	}

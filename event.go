@@ -1,4 +1,4 @@
-package xwiimote
+package wiimote
 
 import (
 	"time"
@@ -201,7 +201,7 @@ type EventMotionPlus struct {
 // and not via the core-interface (which only reports core-buttons).
 // Valid buttons include: LEFT, RIGHT, UP, DOWN, PLUS, MINUS, HOME, X,
 // Y, A, B, TR, TL, ZR, ZL, THUMBL, THUMBR.
-// Payload type is struct xwii_event_key.
+// Payload type is struct wii_event_key.
 type EventProControllerKey struct {
 	EventKey
 }
@@ -242,7 +242,7 @@ type EventClassicControllerKey struct {
 
 // EventClassicControllerMove provides Classic Controller movement events.
 // Movement of analog sticks are reported via this event. The payload
-// is a struct xwii_event_abs and the first two array elements contain
+// is a struct wii_event_abs and the first two array elements contain
 // the absolute x and y position of both analog sticks.
 // The x value of the third array element contains the absolute position
 // of the TL trigger. The y value contains the absolute position for the
@@ -268,7 +268,7 @@ type EventNunchukKey struct {
 
 // EventNunchukMove provides Nunchuk movement events.
 // Movement events of the nunchuk controller are reported via this
-// interface. Payload is of type struct xwii_event_abs. The first array
+// interface. Payload is of type struct wii_event_abs. The first array
 // element contains the x/y positions of the analog stick. The second
 // array element contains the accelerometer information.
 type EventNunchukMove struct {

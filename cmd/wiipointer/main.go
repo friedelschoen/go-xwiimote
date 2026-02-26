@@ -6,16 +6,16 @@ import (
 	"log"
 	"time"
 
-	"github.com/friedelschoen/go-xwiimote"
-	"github.com/friedelschoen/go-xwiimote/pkg/irpointer"
-	"github.com/friedelschoen/go-xwiimote/pkg/vinput"
+	"github.com/friedelschoen/go-wiimote"
+	"github.com/friedelschoen/go-wiimote/pkg/irpointer"
+	"github.com/friedelschoen/go-wiimote/pkg/vinput"
 )
 
 var ScrollSpeed = flag.Float64("scrollspeed", 0.01, "Set the vertical scrollspeed")
 var HorizScrollSpeed = flag.Float64("hscrollspeed", 0.01, "Set the horizontal scrollspeed")
 
-func watchDevice(dev *xwiimote.Device) {
-	mouse, err := vinput.CreateMouse("xwiimote-mouse",
+func watchDevice(dev *wiimote.Device) {
+	mouse, err := vinput.CreateMouse("wiimote-mouse",
 		vinput.Range{Min: -340, Max: 340, Res: 72},
 		vinput.Range{Min: -92, Max: 290, Res: 72}, []vinput.Key{
 			vinput.ButtonLeft,
@@ -33,12 +33,12 @@ func watchDevice(dev *xwiimote.Device) {
 	}
 	defer mouse.Close()
 
-	if err := dev.OpenInterfaces(false, &xwiimote.InterfaceCore{}, &xwiimote.InterfaceIR{}, &xwiimote.InterfaceAccel{}); err != nil {
+	if err := dev.OpenInterfaces(false, &wiimote.InterfaceCore{}, &wiimote.InterfaceIR{}, &wiimote.InterfaceAccel{}); err != nil {
 		log.Fatalf("error: unable to open device: %v", err)
 	}
 
 	bat, _ := dev.Battery()
-	fmt.Printf("new wiimote at %s with %d%% battery, cap=%v\n", dev.Syspath(), bat, dev.Available(&xwiimote.InterfaceIR{}))
+	fmt.Printf("new wiimote at %s with %d%% battery, cap=%v\n", dev.Syspath(), bat, dev.Available(&wiimote.InterfaceIR{}))
 
 	pointer := irpointer.NewIRPointer()
 	process := irpointer.FilterChain{
@@ -66,18 +66,18 @@ func watchDevice(dev *xwiimote.Device) {
 		for {
 			blink = !blink
 
-			var leds xwiimote.Led
+			var leds wiimote.Led
 			switch frame.Health {
 			case irpointer.IRLost:
 				if blink && lostcount <= 5 {
-					leds |= xwiimote.Led1
+					leds |= wiimote.Led1
 					lostcount++
 				}
 			case irpointer.IRSingle:
-				leds |= xwiimote.Led1
+				leds |= wiimote.Led1
 				lostcount = 0
 			case irpointer.IRGood:
-				leds |= xwiimote.Led1 | xwiimote.Led2
+				leds |= wiimote.Led1 | wiimote.Led2
 				lostcount = 0
 			}
 
@@ -89,12 +89,12 @@ func watchDevice(dev *xwiimote.Device) {
 			switch {
 			case soc < 5:
 				if blink {
-					leds |= xwiimote.Led3
+					leds |= wiimote.Led3
 				}
 			case soc < 25:
-				leds |= xwiimote.Led3
+				leds |= wiimote.Led3
 			default:
-				leds |= xwiimote.Led3 | xwiimote.Led4
+				leds |= wiimote.Led3 | wiimote.Led4
 			}
 
 			dev.SetLED(leds)
@@ -119,8 +119,8 @@ func watchDevice(dev *xwiimote.Device) {
 		}
 	}()
 
-	var lastIR *xwiimote.EventIR
-	var lastAccel *xwiimote.EventAccel
+	var lastIR *wiimote.EventIR
+	var lastAccel *wiimote.EventAccel
 	var hold time.Time
 	for {
 		ev, err := dev.Wait(-1)
@@ -128,41 +128,41 @@ func watchDevice(dev *xwiimote.Device) {
 			log.Printf("unable to poll event: %v\n", err)
 		}
 		switch ev := ev.(type) {
-		case *xwiimote.EventIR:
+		case *wiimote.EventIR:
 			lastIR = ev
-		case *xwiimote.EventAccel:
+		case *wiimote.EventAccel:
 			lastAccel = ev
-		case *xwiimote.EventKey:
-			if ev.State == xwiimote.StateRepeated {
+		case *wiimote.EventKey:
+			if ev.State == wiimote.StateRepeated {
 				break
 			}
-			if ev.Code != xwiimote.KeyDown {
+			if ev.Code != wiimote.KeyDown {
 				hold = time.Time{}
-				if ev.State == xwiimote.StatePressed {
+				if ev.State == wiimote.StatePressed {
 					hold = time.Now()
 				}
 			}
 			switch ev.Code {
-			case xwiimote.KeyA:
-				mouse.Key(vinput.ButtonLeft, ev.State != xwiimote.StateReleased)
-			case xwiimote.KeyB:
-				mouse.Key(vinput.ButtonRight, ev.State != xwiimote.StateReleased)
-			case xwiimote.KeyHome:
-				mouse.Key(vinput.KeyLeftmeta, ev.State != xwiimote.StateReleased)
-			case xwiimote.KeyLeft:
-				mouse.Key(vinput.ButtonBack, ev.State != xwiimote.StateReleased)
-			case xwiimote.KeyRight:
-				mouse.Key(vinput.ButtonForward, ev.State != xwiimote.StateReleased)
-			case xwiimote.KeyMinus:
-				mouse.Key(vinput.KeyVolumedown, ev.State != xwiimote.StateReleased)
-			case xwiimote.KeyPlus:
-				mouse.Key(vinput.KeyVolumeup, ev.State != xwiimote.StateReleased)
-			case xwiimote.KeyTwo:
-				mouse.Key(vinput.KeyPlaypause, ev.State != xwiimote.StateReleased)
-			case xwiimote.KeyOne:
-				mouse.Key(vinput.KeyNext, ev.State != xwiimote.StateReleased)
-			case xwiimote.KeyDown:
-				if ev.State == xwiimote.StatePressed {
+			case wiimote.KeyA:
+				mouse.Key(vinput.ButtonLeft, ev.State != wiimote.StateReleased)
+			case wiimote.KeyB:
+				mouse.Key(vinput.ButtonRight, ev.State != wiimote.StateReleased)
+			case wiimote.KeyHome:
+				mouse.Key(vinput.KeyLeftmeta, ev.State != wiimote.StateReleased)
+			case wiimote.KeyLeft:
+				mouse.Key(vinput.ButtonBack, ev.State != wiimote.StateReleased)
+			case wiimote.KeyRight:
+				mouse.Key(vinput.ButtonForward, ev.State != wiimote.StateReleased)
+			case wiimote.KeyMinus:
+				mouse.Key(vinput.KeyVolumedown, ev.State != wiimote.StateReleased)
+			case wiimote.KeyPlus:
+				mouse.Key(vinput.KeyVolumeup, ev.State != wiimote.StateReleased)
+			case wiimote.KeyTwo:
+				mouse.Key(vinput.KeyPlaypause, ev.State != wiimote.StateReleased)
+			case wiimote.KeyOne:
+				mouse.Key(vinput.KeyNext, ev.State != wiimote.StateReleased)
+			case wiimote.KeyDown:
+				if ev.State == wiimote.StatePressed {
 					if frame.Valid {
 						pos := frame.Position
 						scroll = &pos
@@ -199,7 +199,7 @@ func watchDevice(dev *xwiimote.Device) {
 func main() {
 	flag.Parse()
 
-	monitor, err := xwiimote.NewMonitor(xwiimote.MonitorUdev)
+	monitor, err := wiimote.NewMonitor(wiimote.MonitorUdev)
 	if err != nil {
 		log.Fatalln("error: ", err)
 	}

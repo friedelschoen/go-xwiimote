@@ -1,10 +1,10 @@
-package xwiimote
+package wiimote
 
 import (
 	"iter"
 
-	"github.com/friedelschoen/go-xwiimote/pkg/udev"
-	"github.com/friedelschoen/go-xwiimote/pkg/udev/sequences"
+	"github.com/friedelschoen/go-wiimote/pkg/udev"
+	"github.com/friedelschoen/go-wiimote/pkg/udev/sequences"
 )
 
 // IterDevices returns all currently available devices. It returns an error if the

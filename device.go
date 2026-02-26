@@ -1,5 +1,5 @@
-// Package xwiimote has bindings for libxwiimote, a library to read and control inputs on a Nintendo WiiMote and accessories.
-package xwiimote
+// Package wiimote has bindings for libwiimote, a library to read and control inputs on a Nintendo WiiMote and accessories.
+package wiimote
 
 // #include <linux/input.h>
 // #include <errno.h>
@@ -12,7 +12,7 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/friedelschoen/go-xwiimote/pkg/udev"
+	"github.com/friedelschoen/go-wiimote/pkg/udev"
 )
 
 const debugfs = "/sys/kernel/debug"
@@ -410,7 +410,7 @@ func (dev *Device) Extension() (string, error) {
 
 func (dev *Device) String() string {
 	var w strings.Builder
-	w.WriteString("xwiimote-device ")
+	w.WriteString("wiimote-device ")
 	devtype, _ := dev.DevType()
 	w.WriteString(devtype)
 	ext, _ := dev.Extension()

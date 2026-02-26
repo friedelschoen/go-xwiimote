@@ -10,39 +10,39 @@ import (
 	"strings"
 	"time"
 
-	"github.com/friedelschoen/go-xwiimote"
-	"github.com/friedelschoen/go-xwiimote/pkg/vinput"
+	"github.com/friedelschoen/go-wiimote"
+	"github.com/friedelschoen/go-wiimote/pkg/vinput"
 )
 
-var wiiKeynames = map[string]xwiimote.Key{
-	"LEFT":           xwiimote.KeyLeft,
-	"RIGHT":          xwiimote.KeyRight,
-	"UP":             xwiimote.KeyUp,
-	"DOWN":           xwiimote.KeyDown,
-	"A":              xwiimote.KeyA,
-	"B":              xwiimote.KeyB,
-	"PLUS":           xwiimote.KeyPlus,
-	"MINUS":          xwiimote.KeyMinus,
-	"HOME":           xwiimote.KeyHome,
-	"ONE":            xwiimote.KeyOne,
-	"TWO":            xwiimote.KeyTwo,
-	"X":              xwiimote.KeyX,
-	"Y":              xwiimote.KeyY,
-	"TL":             xwiimote.KeyTL,
-	"TR":             xwiimote.KeyTR,
-	"ZL":             xwiimote.KeyZL,
-	"ZR":             xwiimote.KeyZR,
-	"THUMBL":         xwiimote.KeyThumbL,
-	"THUMBR":         xwiimote.KeyThumbR,
-	"C":              xwiimote.KeyC,
-	"Z":              xwiimote.KeyZ,
-	"STRUM_BAR_UP":   xwiimote.KeyStrumBarUp,
-	"STRUM_BAR_DOWN": xwiimote.KeyStrumBarDown,
-	"FRET_FAR_UP":    xwiimote.KeyFretFarUp,
-	"FRET_UP":        xwiimote.KeyFretUp,
-	"FRET_MID":       xwiimote.KeyFretMid,
-	"FRET_LOW":       xwiimote.KeyFretLow,
-	"FRET_FAR_LOW":   xwiimote.KeyFretFarLow,
+var wiiKeynames = map[string]wiimote.Key{
+	"LEFT":           wiimote.KeyLeft,
+	"RIGHT":          wiimote.KeyRight,
+	"UP":             wiimote.KeyUp,
+	"DOWN":           wiimote.KeyDown,
+	"A":              wiimote.KeyA,
+	"B":              wiimote.KeyB,
+	"PLUS":           wiimote.KeyPlus,
+	"MINUS":          wiimote.KeyMinus,
+	"HOME":           wiimote.KeyHome,
+	"ONE":            wiimote.KeyOne,
+	"TWO":            wiimote.KeyTwo,
+	"X":              wiimote.KeyX,
+	"Y":              wiimote.KeyY,
+	"TL":             wiimote.KeyTL,
+	"TR":             wiimote.KeyTR,
+	"ZL":             wiimote.KeyZL,
+	"ZR":             wiimote.KeyZR,
+	"THUMBL":         wiimote.KeyThumbL,
+	"THUMBR":         wiimote.KeyThumbR,
+	"C":              wiimote.KeyC,
+	"Z":              wiimote.KeyZ,
+	"STRUM_BAR_UP":   wiimote.KeyStrumBarUp,
+	"STRUM_BAR_DOWN": wiimote.KeyStrumBarDown,
+	"FRET_FAR_UP":    wiimote.KeyFretFarUp,
+	"FRET_UP":        wiimote.KeyFretUp,
+	"FRET_MID":       wiimote.KeyFretMid,
+	"FRET_LOW":       wiimote.KeyFretLow,
+	"FRET_FAR_LOW":   wiimote.KeyFretFarLow,
 }
 
 var realKeynames = map[string]vinput.Key{
@@ -291,11 +291,11 @@ var realKeynames = map[string]vinput.Key{
 }
 
 var (
-	kbname = flag.String("name", "xwiimote-virtual", "Name to use")
+	kbname = flag.String("name", "wiimote-virtual", "Name to use")
 )
 
-func loadMapping(r io.Reader) map[xwiimote.Key]vinput.Key {
-	mapping := make(map[xwiimote.Key]vinput.Key)
+func loadMapping(r io.Reader) map[wiimote.Key]vinput.Key {
+	mapping := make(map[wiimote.Key]vinput.Key)
 	scan := bufio.NewScanner(r)
 	for scan.Scan() {
 		line := scan.Text()
@@ -319,10 +319,10 @@ func loadMapping(r io.Reader) map[xwiimote.Key]vinput.Key {
 	return mapping
 }
 
-func watchDevice(dev *xwiimote.Device, mapping map[xwiimote.Key]vinput.Key) {
+func watchDevice(dev *wiimote.Device, mapping map[wiimote.Key]vinput.Key) {
 	fmt.Printf("new device: %s\n", dev.String())
 	time.Sleep(100 * time.Millisecond)
-	coreif := xwiimote.InterfaceCore{}
+	coreif := wiimote.InterfaceCore{}
 	if err := dev.OpenInterfaces(true, &coreif); err != nil {
 		fmt.Fprintf(os.Stderr, "error: unable to open device: %s", err)
 	}
@@ -332,7 +332,7 @@ func watchDevice(dev *xwiimote.Device, mapping map[xwiimote.Key]vinput.Key) {
 		panic(err)
 	}
 	defer kb.Close()
-	var leds xwiimote.Led
+	var leds wiimote.Led
 
 	dev.Watch(true)
 	for {
@@ -342,12 +342,12 @@ func watchDevice(dev *xwiimote.Device, mapping map[xwiimote.Key]vinput.Key) {
 		}
 		fmt.Printf("%T: %+v\n", ev, ev)
 		switch ev := ev.(type) {
-		case *xwiimote.EventKey:
-			if ev.Code == xwiimote.KeyHome {
-				coreif.Rumble(ev.State == xwiimote.StatePressed)
+		case *wiimote.EventKey:
+			if ev.Code == wiimote.KeyHome {
+				coreif.Rumble(ev.State == wiimote.StatePressed)
 				continue
-			} else if ev.Code == xwiimote.KeyTwo {
-				if ev.State == xwiimote.StatePressed {
+			} else if ev.Code == wiimote.KeyTwo {
+				if ev.State == wiimote.StatePressed {
 					leds++
 					leds %= 16
 
@@ -360,8 +360,8 @@ func watchDevice(dev *xwiimote.Device, mapping map[xwiimote.Key]vinput.Key) {
 			if !ok {
 				continue
 			}
-			kb.Key(realkey, ev.State != xwiimote.StateReleased)
-		case *xwiimote.EventGone:
+			kb.Key(realkey, ev.State != wiimote.StateReleased)
+		case *wiimote.EventGone:
 			return
 		}
 	}
@@ -372,7 +372,7 @@ func main() {
 
 	mapping := loadMapping(os.Stdin)
 
-	monitor, err := xwiimote.NewMonitor(xwiimote.MonitorUdev)
+	monitor, err := wiimote.NewMonitor(wiimote.MonitorUdev)
 	if err != nil {
 		log.Fatalln("error: ", err)
 	}

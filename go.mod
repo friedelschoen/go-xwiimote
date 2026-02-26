@@ -1,4 +1,4 @@
-module github.com/friedelschoen/go-xwiimote
+module github.com/friedelschoen/go-wiimote
 
 go 1.24.0
 

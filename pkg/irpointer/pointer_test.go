@@ -4,7 +4,7 @@ import (
 	"math"
 	"testing"
 
-	xwiimote "github.com/friedelschoen/go-xwiimote"
+	wiimote "github.com/friedelschoen/go-wiimote"
 )
 
 // These tests validate the IR pointer algorithm as a pure state machine +
@@ -34,17 +34,17 @@ func norm2(v FVec2) float64 {
 	return v.X*v.X + v.Y*v.Y
 }
 
-func mkSlotValid(x, y int32) xwiimote.IRSlot {
-	return xwiimote.IRSlot{Vec2: xwiimote.Vec2{X: x, Y: y}}
+func mkSlotValid(x, y int32) wiimote.IRSlot {
+	return wiimote.IRSlot{Vec2: wiimote.Vec2{X: x, Y: y}}
 }
 
-func mkSlotInvalid() xwiimote.IRSlot {
+func mkSlotInvalid() wiimote.IRSlot {
 	// Your IRSlot.Valid() treats (1023,1023) as invalid ("no track").
-	return xwiimote.IRSlot{Vec2: xwiimote.Vec2{X: 1023, Y: 1023}}
+	return wiimote.IRSlot{Vec2: wiimote.Vec2{X: 1023, Y: 1023}}
 }
 
-func mkSlots(valid ...xwiimote.IRSlot) [4]xwiimote.IRSlot {
-	var s [4]xwiimote.IRSlot
+func mkSlots(valid ...wiimote.IRSlot) [4]wiimote.IRSlot {
+	var s [4]wiimote.IRSlot
 	for i := range s {
 		s[i] = mkSlotInvalid()
 	}
@@ -292,7 +292,7 @@ func TestUpdateSensorbar_TwoDotsGivesGoodAndDistance(t *testing.T) {
 // 	//   dot.Y =  (y - 384)/512  => y = 384 + dot.Y*512
 // 	//
 // 	// Here dot.Y=0, so y=384.
-// 	toSlot := func(d FVec2) xwiimote.IRSlot {
+// 	toSlot := func(d FVec2) wiimote.IRSlot {
 // 		x := int32(math.Round(512.0 - d.X*512.0))
 // 		y := int32(384.0) // since d.Y=0
 // 		// Clamp to valid sensor ranges.

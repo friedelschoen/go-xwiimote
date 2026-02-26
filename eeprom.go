@@ -1,4 +1,4 @@
-package xwiimote
+package wiimote
 
 import (
 	"fmt"

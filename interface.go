@@ -1,4 +1,4 @@
-package xwiimote
+package wiimote
 
 // #include "input-defs.h"
 import "C"

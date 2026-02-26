@@ -38,7 +38,7 @@ import (
 	"math"
 	"slices"
 
-	"github.com/friedelschoen/go-xwiimote"
+	"github.com/friedelschoen/go-wiimote"
 )
 
 // rotates dots in `in` into `out`, `out` is expected to be at least as big as `in`
@@ -62,7 +62,7 @@ func square(f float64) float64 {
 	return f * f
 }
 
-func findDots(slots [4]xwiimote.IRSlot) []FVec2 {
+func findDots(slots [4]wiimote.IRSlot) []FVec2 {
 	// count visible dots and populate dots structure
 	// dots[] is in -1..1 units for width
 	var dots [4]FVec2
@@ -374,7 +374,7 @@ func (ir *IRPointer) guessSingle(dots, accDots []FVec2, roll float64) (sb Sensor
 
 // raw      *FVec2  // Raw coordinate (-512..512, 0 is center)
 // distance float64 // Pixel width of the sensor bar
-func (ir *IRPointer) updateSensorbar(slots [4]xwiimote.IRSlot, roll float64) {
+func (ir *IRPointer) updateSensorbar(slots [4]wiimote.IRSlot, roll float64) {
 	dots := findDots(slots)
 
 	// nothing to track
@@ -416,7 +416,7 @@ func (ir *IRPointer) updateSensorbar(slots [4]xwiimote.IRSlot, roll float64) {
 //
 // If acceleration data is unreliable (wiimote is significantly
 // accelerating) then you should supply the last known good value.
-func (ir *IRPointer) Step(slots [4]xwiimote.IRSlot, accel xwiimote.Vec3) Frame {
+func (ir *IRPointer) Step(slots [4]wiimote.IRSlot, accel wiimote.Vec3) Frame {
 	roll := math.Atan2(float64(accel.X), float64(accel.Z))
 	return ir.StepRoll(slots, roll)
 }
@@ -426,7 +426,7 @@ func (ir *IRPointer) Step(slots [4]xwiimote.IRSlot, accel xwiimote.Vec3) Frame {
 // You can calculate the roll from the accel as roll=atan2(x, z). If roll
 // data is unreliable (wiimote is significantly accelerating) then you should
 // supply the last known good value.
-func (ir *IRPointer) StepRoll(slots [4]xwiimote.IRSlot, roll float64) Frame {
+func (ir *IRPointer) StepRoll(slots [4]wiimote.IRSlot, roll float64) Frame {
 	ir.updateSensorbar(slots, roll)
 	return ir.frame
 }

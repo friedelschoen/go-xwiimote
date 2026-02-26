@@ -1,4 +1,4 @@
-package xwiimote
+package wiimote
 
 //go:generate morestringer -output stringer.go Led Key:cconst KeyState MonitorType
 

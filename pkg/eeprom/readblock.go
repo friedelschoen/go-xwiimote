@@ -5,7 +5,7 @@ import (
 	"errors"
 	"io"
 
-	"github.com/friedelschoen/go-xwiimote"
+	"github.com/friedelschoen/go-wiimote"
 )
 
 const (
@@ -88,7 +88,7 @@ func calibCRC(b []byte) bool {
 	return b[len(b)-1] == crc
 }
 
-func ReadIRCalibration(r io.ReaderAt) (slots [4]xwiimote.Vec2, err error) {
+func ReadIRCalibration(r io.ReaderAt) (slots [4]wiimote.Vec2, err error) {
 	var buf [11]byte
 	err = readTwice(r, IRCalibOffset, buf[:], nil, calibCRC)
 	if err != nil {
@@ -107,7 +107,7 @@ func ReadIRCalibration(r io.ReaderAt) (slots [4]xwiimote.Vec2, err error) {
 	return
 }
 
-func ReadAccelCalibration(r io.ReaderAt) (accel [2]xwiimote.Vec3, speaker uint8, motor bool, err error) {
+func ReadAccelCalibration(r io.ReaderAt) (accel [2]wiimote.Vec3, speaker uint8, motor bool, err error) {
 	var buf [10]byte
 	err = readTwice(r, AccelCalibOffset, buf[:], nil, calibCRC)
 	if err != nil {
