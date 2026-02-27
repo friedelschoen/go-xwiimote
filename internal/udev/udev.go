@@ -76,16 +76,6 @@ func NewDeviceFromSyspath(syspath string) *Device {
 	return d
 }
 
-// NewDeviceFromDevnum returns a pointer to a new device identified by its Devnum, and nil on error
-// deviceType is 'c' for a character device and 'b' for a block device
-func NewDeviceFromDevnum(deviceType uint8, n devnum) *Device {
-	d := newDevice()
-	d.lock()
-	defer d.unlock()
-	d.ptr = C.udev_device_new_from_devnum(d.udevPtr, C.char(deviceType), n.d)
-	return d
-}
-
 // NewDeviceFromSubsystemSysname returns a pointer to a new device identified by its subystem and sysname, and nil on error
 func NewDeviceFromSubsystemSysname(subsystem, sysname string) *Device {
 	d := newDevice()

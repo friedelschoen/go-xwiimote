@@ -75,19 +75,6 @@ func (e *Enumerate) AddNomatchSysattr(sysattr, value string) (err error) {
 	return
 }
 
-// AddMatchProperty adds a filter for a property of the device to include in the list.
-func (e *Enumerate) AddMatchProperty(property, value string) (err error) {
-	e.lock()
-	defer e.unlock()
-	p, v := C.CString(property), C.CString(value)
-	defer freeCharPtr(p)
-	defer freeCharPtr(v)
-	if C.udev_enumerate_add_match_property(e.ptr, p, v) != 0 {
-		err = errors.New("udev: udev_enumerate_add_match_property failed")
-	}
-	return
-}
-
 // AddMatchSysname adds a filter for the name of the device to include in the list.
 func (e *Enumerate) AddMatchSysname(sysname string) (err error) {
 	e.lock()
@@ -96,18 +83,6 @@ func (e *Enumerate) AddMatchSysname(sysname string) (err error) {
 	defer freeCharPtr(s)
 	if C.udev_enumerate_add_match_sysname(e.ptr, s) != 0 {
 		err = errors.New("udev: udev_enumerate_add_match_sysname failed")
-	}
-	return
-}
-
-// AddMatchTag adds a filter for a tag of the device to include in the list.
-func (e *Enumerate) AddMatchTag(tag string) (err error) {
-	e.lock()
-	defer e.unlock()
-	t := C.CString(tag)
-	defer freeCharPtr(t)
-	if C.udev_enumerate_add_match_tag(e.ptr, t) != 0 {
-		err = errors.New("udev: udev_enumerate_add_match_tag failed")
 	}
 	return
 }
@@ -125,20 +100,6 @@ func (e *Enumerate) AddMatchParent(parent wiimote.DeviceInfo) error {
 		return errors.New("udev: udev_enumerate_add_match_parent failed")
 	}
 	return nil
-}
-
-// AddMatchIsInitialized adds a filter matching only devices which udev has set up already.
-// This makes sure, that the device node permissions and context are properly set and that network devices are fully renamed.
-// Usually, devices which are found in the kernel but not already handled by udev, have still pending events.
-// Services should subscribe to monitor events and wait for these devices to become ready, instead of using uninitialized devices.
-// For now, this will not affect devices which do not have a device node and are not network interfaces.
-func (e *Enumerate) AddMatchIsInitialized() (err error) {
-	e.lock()
-	defer e.unlock()
-	if C.udev_enumerate_add_match_is_initialized(e.ptr) != 0 {
-		err = errors.New("udev: udev_enumerate_add_match_is_initialized failed")
-	}
-	return
 }
 
 // AddSyspath adds a device to the list of enumerated devices, to retrieve it back sorted in dependency order.

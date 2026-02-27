@@ -45,7 +45,7 @@ func (dev *Device) readUmon(pollEv uint32) (wiimote.Event, error) {
 		npath := ndev.Syspath()
 		node := ndev.Devnode()
 		var ppath string
-		if p := ndev.ParentWithSubsystemDevtype("hid", ""); p != nil {
+		if p := ndev.Parent(); p != nil && p.Subsystem() == "hid" {
 			ppath = p.Syspath()
 		}
 		if act == "change" && path == npath {

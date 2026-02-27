@@ -75,35 +75,6 @@ func (m *Monitor) FilterAddMatchSubsystem(subsystem string) (err error) {
 	return
 }
 
-// FilterAddMatchSubsystemDevtype adds a filter matching the device against a subsystem and device type.
-// This filter is efficiently executed inside the kernel, and libudev subscribers will usually not be woken up for devices which do not match.
-// The filter must be installed before the monitor is switched to listening mode with the DeviceChan function.
-func (m *Monitor) FilterAddMatchSubsystemDevtype(subsystem, devtype string) (err error) {
-	m.lock()
-	defer m.unlock()
-	s, d := C.CString(subsystem), C.CString(devtype)
-	defer freeCharPtr(s)
-	defer freeCharPtr(d)
-	if C.udev_monitor_filter_add_match_subsystem_devtype(m.ptr, s, d) != 0 {
-		err = errors.New("udev: udev_monitor_filter_add_match_subsystem_devtype failed")
-	}
-	return
-}
-
-// FilterAddMatchTag adds a filter matching the device against a tag.
-// This filter is efficiently executed inside the kernel, and libudev subscribers will usually not be woken up for devices which do not match.
-// The filter must be installed before the monitor is switched to listening mode.
-func (m *Monitor) FilterAddMatchTag(tag string) (err error) {
-	m.lock()
-	defer m.unlock()
-	t := C.CString(tag)
-	defer freeCharPtr(t)
-	if C.udev_monitor_filter_add_match_tag(m.ptr, t) != 0 {
-		err = errors.New("udev: udev_monitor_filter_add_match_tag failed")
-	}
-	return
-}
-
 // FilterUpdate updates the installed socket filter.
 // This is only needed, if the filter was removed or changed.
 func (m *Monitor) FilterUpdate() (err error) {

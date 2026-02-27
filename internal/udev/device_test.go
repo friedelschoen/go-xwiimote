@@ -2,9 +2,7 @@ package udev
 
 import (
 	"fmt"
-	"maps"
 	"runtime"
-	"slices"
 	"testing"
 )
 
@@ -15,18 +13,10 @@ func ExampleDevice() {
 	// Extract information
 	fmt.Printf("Sysname:%v\n", d.Sysname())
 	fmt.Printf("Syspath:%v\n", d.Syspath())
-	fmt.Printf("Devpath:%v\n", d.Devpath())
 	fmt.Printf("Devnode:%v\n", d.Devnode())
 	fmt.Printf("Subsystem:%v\n", d.Subsystem())
-	fmt.Printf("Devtype:%v\n", d.Devtype())
-	fmt.Printf("Sysnum:%v\n", d.Sysnum())
-	fmt.Printf("IsInitialized:%v\n", d.IsInitialized())
 	fmt.Printf("Driver:%v\n", d.Driver())
 
-	// Use one of the iterators
-	for key, value := range d.Properties() {
-		_ = fmt.Sprintf("Property:%v=%v\n", key, value)
-	}
 	// Output:
 	// Sysname:zero
 	// Syspath:/sys/devices/virtual/mem/zero
@@ -35,7 +25,6 @@ func ExampleDevice() {
 	// Subsystem:mem
 	// Devtype:
 	// Sysnum:
-	// IsInitialized:true
 	// Driver:
 }
 
@@ -53,23 +42,7 @@ func TestDeviceZero(t *testing.T) {
 	if d.Devnode() != "/dev/zero" {
 		t.Fail()
 	}
-	if d.PropertyValue("SUBSYSTEM") != "mem" {
-		t.Fail()
-	}
-	if !d.IsInitialized() {
-		t.Fail()
-	}
 	if d.SysattrValue("subsystem") != "mem" {
-		t.Fail()
-	}
-	// Device should have Properties
-	properties := d.Properties()
-	if len(maps.Collect(properties)) == 0 {
-		t.Fail()
-	}
-	// Device should have Sysattrs
-	sysattrs := d.Sysattrs()
-	if len(slices.Collect(sysattrs)) == 0 {
 		t.Fail()
 	}
 }

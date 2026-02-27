@@ -250,7 +250,7 @@ func (dev *Device) OpenInterfaces(wr bool, ifaces wiimote.InterfaceKind) error {
 			continue
 		}
 		dev.ifs[node] = iface
-		dev.moreEvents <- wiimote.EventInterface{
+		dev.moreEvents <- &wiimote.EventInterface{
 			Event: commonEvent{
 				timestamp: time.Now(),
 				iface:     iface,
@@ -284,6 +284,12 @@ func (dev *Device) Available(iface wiimote.InterfaceKind) bool {
 // It returns the event or nil if an error occured, the continue-flag whether a new event can be polled right away and
 // optionally and error, if the error is ErrRetry, consider polling again for new events.
 func (dev *Device) Poll() (wiimote.Event, bool, error) {
+	select {
+	case e := <-dev.moreEvents:
+		return e, true, nil
+	default:
+	}
+
 	var ep [32]syscall.EpollEvent
 
 	//  write outgoing events here
