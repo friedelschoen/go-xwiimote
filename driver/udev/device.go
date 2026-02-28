@@ -15,8 +15,14 @@ type Device struct {
 }
 
 func deviceUnref(d *Device) {
-	C.udev_device_unref(d.ptr)
-	C.udev_unref(d.udevPtr)
+	if d.ptr != nil {
+		C.udev_device_unref(d.ptr)
+		d.ptr = nil
+	}
+	if d.udevPtr != nil {
+		C.udev_unref(d.udevPtr)
+		d.udevPtr = nil
+	}
 }
 
 // Parent returns the parent Device, or nil if the receiver has no parent Device
@@ -24,7 +30,10 @@ func (d *Device) Parent() wiimote.DeviceInfo {
 	d.lock()
 	defer d.unlock()
 	ptr := C.udev_device_get_parent(d.ptr)
-
+	if ptr == nil {
+		return nil
+	}
+	ptr = C.udev_device_ref(ptr)
 	pd := newDevice()
 	pd.ptr = ptr
 	return pd
