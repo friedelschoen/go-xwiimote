@@ -25,19 +25,12 @@ type Interface interface {
 type commonInterface struct {
 	// parent commoniface.device
 	dev *Device
-	//iface.device node as /dev/input/eventX or ""
-	node string
 	// wether file is opened
 	opened bool
 	// Open file
 	file common.UnbufferedFile
 	// current kind
 	kind wiimote.InterfaceKind
-}
-
-// Node is an absolute path which points to the sys-directory. When opened, a node is bound to this device.
-func (iface *commonInterface) Node() string {
-	return iface.node
 }
 
 func (iface *commonInterface) Kind() wiimote.InterfaceKind {
@@ -62,18 +55,17 @@ func (iface *commonInterface) Opened() bool {
 }
 
 func (iff *commonInterface) open(dev *Device, kind wiimote.InterfaceKind, node string, wr bool) error {
-	if iff.dev != nil && iff.node != "" && iff.opened {
+	if iff.dev != nil && iff.opened {
 		return nil
 	}
 
 	iff.dev = dev
-	iff.node = node
 
 	flags := syscall.O_NONBLOCK | syscall.O_CLOEXEC
 	if wr {
 		flags |= syscall.O_RDWR
 	}
-	fd, err := syscall.Open(iff.Node(), flags, 0)
+	fd, err := syscall.Open(node, flags, 0)
 	if err != nil {
 		return err
 	}

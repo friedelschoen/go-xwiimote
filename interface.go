@@ -8,8 +8,6 @@ type Interface interface {
 	io.Closer
 	// Type of this interface
 	Kind() InterfaceKind
-	// Node is an absolute path which points to the sys-directory. When opened, a node is bound to this interface.
-	Node() string
 	// Device is the parent of this interface. When opened, a device is bound to this interface.
 	Device() Device
 	// Opened returns a bitmask of opened interfaces. Interfaces may be closed due to
