@@ -53,7 +53,7 @@ func main() {
 		log.Printf("error while polling: %v\n", err)
 		return
 	}
-	d, err := driver.NewDevice(dev, driver.BackendKernel)
+	d, err := driver.NewDevice(dev, driver.BackendHID)
 	if err != nil {
 		log.Printf("error creating device: %v\n", err)
 		return

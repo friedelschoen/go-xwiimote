@@ -97,17 +97,6 @@ const (
 	KeyFretFarLow
 )
 
-type KeyState uint
-
-const (
-	// The key is released, alternativly KeyUp
-	StateReleased KeyState = iota
-	// The key is pressed, alternativly KeyDown
-	StatePressed
-	// The key is hold down and repeats
-	StateRepeated
-)
-
 // Vec2 represents a 2D point or vector to X and Y, may be interpreted different depending on the event .
 type Vec2 struct {
 	X int32 `json:"x"`
@@ -134,8 +123,8 @@ type Event interface {
 // HOME, ONE, TWO.
 type EventKey struct {
 	Event
-	Code  Key      `json:"code"`
-	State KeyState `json:"state"`
+	Code    Key  `json:"code"`
+	Pressed bool `json:"pressed"`
 }
 
 // EventAccel provides accelerometer data.
@@ -160,6 +149,7 @@ type EventIR struct {
 // IRSlot describes Infra-Red Tracking on a WiiMote
 type IRSlot struct {
 	Vec2
+	Size uint8
 }
 
 // Valid returns wether this slot holds a valid source. If not it has no track and is considered disabled.
@@ -304,7 +294,8 @@ type EventGuitarMove struct {
 // EventFeature is provided when a feature is added.
 type EventFeature struct {
 	Event
-	Kind FeatureKind
+	Kind    FeatureKind
+	Removed bool
 }
 
 // EventGone provides Removal Event.

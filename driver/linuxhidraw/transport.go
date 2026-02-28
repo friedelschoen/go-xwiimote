@@ -21,7 +21,7 @@ func NewTransportFromInfo(info wiimote.DeviceInfo) (commonhid.Transport, error) 
 	hidrawpath := filepath.Join("/dev", entries[0].Name())
 
 	//syscall.O_RDWR|
-	fd, err := syscall.Open(hidrawpath, syscall.O_NONBLOCK|syscall.O_CLOEXEC, 0)
+	fd, err := syscall.Open(hidrawpath, syscall.O_RDWR|syscall.O_NONBLOCK|syscall.O_CLOEXEC, 0)
 	if err != nil {
 		return nil, err
 	}

@@ -60,12 +60,10 @@ type DeviceEnumerator interface {
 
 	// Devices returns an Iterator over the device syspaths matching the filter, sorted in dependency order.
 	// The Iterator is using the github.com/jkeiser/iter package.
-	// Values are returned as an feature{} and should be cast to string.
 	Devices() (it iter.Seq[DeviceInfo], err error)
 
 	// Subsystems returns an Iterator over the subsystem syspaths matching the filter, sorted in dependency order.
 	// The Iterator is using the github.com/jkeiser/iter package.
-	// Values are returned as an feature{} and should be cast to string.
 	Subsystems() (it iter.Seq[string], err error)
 }
 

@@ -178,7 +178,7 @@ func (iface *featureCore) acceptEvent(ts time.Time, event, code uint16, value in
 		return nil, nil
 	}
 
-	if value < 0 || value > 2 {
+	if value < 0 || value > 1 {
 		return nil, nil
 	}
 
@@ -213,7 +213,7 @@ func (iface *featureCore) acceptEvent(ts time.Time, event, code uint16, value in
 	var ev wiimote.EventKey
 	ev.Event = commonEvent{iface, ts}
 	ev.Code = key
-	ev.State = wiimote.KeyState(value)
+	ev.Pressed = value != 0
 	return &ev, nil
 }
 
@@ -405,7 +405,7 @@ type featureNunchuck struct {
 func (iface *featureNunchuck) acceptEvent(ts time.Time, event, code uint16, value int32) (wiimote.Event, error) {
 	switch event {
 	case C.EV_KEY:
-		if value < 0 || value > 2 {
+		if value < 0 || value > 1 {
 			return nil, nil
 		}
 		var key wiimote.Key
@@ -421,7 +421,7 @@ func (iface *featureNunchuck) acceptEvent(ts time.Time, event, code uint16, valu
 		var ev wiimote.EventNunchukKey
 		ev.Event = commonEvent{iface, ts}
 		ev.Code = key
-		ev.State = wiimote.KeyState(value)
+		ev.Pressed = value != 0
 		return &ev, nil
 	case C.EV_ABS:
 		switch code {
@@ -459,7 +459,7 @@ type featureClassicController struct {
 func (iface *featureClassicController) acceptEvent(ts time.Time, event, code uint16, value int32) (wiimote.Event, error) {
 	switch event {
 	case C.EV_KEY:
-		if value < 0 || value > 2 {
+		if value < 0 || value > 1 {
 			return nil, nil
 		}
 
@@ -502,7 +502,7 @@ func (iface *featureClassicController) acceptEvent(ts time.Time, event, code uin
 		var ev wiimote.EventClassicControllerKey
 		ev.Event = commonEvent{iface, ts}
 		ev.Code = key
-		ev.State = wiimote.KeyState(value)
+		ev.Pressed = value != 0
 		return &ev, nil
 	case C.EV_ABS:
 		switch code {
@@ -573,7 +573,7 @@ type featureProController struct {
 func (iface *featureProController) acceptEvent(ts time.Time, event, code uint16, value int32) (wiimote.Event, error) {
 	switch event {
 	case C.EV_KEY:
-		if value < 0 || value > 2 {
+		if value < 0 || value > 1 {
 			return nil, nil
 		}
 
@@ -620,7 +620,7 @@ func (iface *featureProController) acceptEvent(ts time.Time, event, code uint16,
 		var ev wiimote.EventProControllerKey
 		ev.Event = commonEvent{iface, ts}
 		ev.Code = key
-		ev.State = wiimote.KeyState(value)
+		ev.Pressed = value != 0
 		return &ev, nil
 	case C.EV_ABS:
 		switch code {
@@ -659,7 +659,7 @@ type featureDrums struct {
 func (iface *featureDrums) acceptEvent(ts time.Time, event, code uint16, value int32) (wiimote.Event, error) {
 	switch event {
 	case C.EV_KEY:
-		if value < 0 || value > 2 {
+		if value < 0 || value > 1 {
 			return nil, nil
 		}
 
@@ -676,7 +676,7 @@ func (iface *featureDrums) acceptEvent(ts time.Time, event, code uint16, value i
 		var ev wiimote.EventDrumsKey
 		ev.Event = commonEvent{iface, ts}
 		ev.Code = key
-		ev.State = wiimote.KeyState(value)
+		ev.Pressed = value != 0
 		return &ev, nil
 	case C.EV_ABS:
 		switch code {
@@ -727,7 +727,7 @@ type featureGuitar struct {
 func (iface *featureGuitar) acceptEvent(ts time.Time, event, code uint16, value int32) (wiimote.Event, error) {
 	switch event {
 	case C.EV_KEY:
-		if value < 0 || value > 2 {
+		if value < 0 || value > 1 {
 			return nil, nil
 		}
 
@@ -758,7 +758,7 @@ func (iface *featureGuitar) acceptEvent(ts time.Time, event, code uint16, value 
 		var ev wiimote.EventGuitarKey
 		ev.Event = commonEvent{iface, ts}
 		ev.Code = key
-		ev.State = wiimote.KeyState(value)
+		ev.Pressed = value != 0
 		return &ev, nil
 	case C.EV_ABS:
 		switch code {

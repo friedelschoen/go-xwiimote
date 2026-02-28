@@ -1,6 +1,6 @@
 package wiimote
 
-//go:generate morestringer -lookup Lookup{} -output stringer.go Led Key:cconst KeyState FeatureKind
+//go:generate morestringer -lookup Lookup{} -output stringer.go Led Key:cconst FeatureKind
 
 import (
 	"fmt"
@@ -9,12 +9,13 @@ import (
 )
 
 type Memory interface {
+	io.WriterAt
 	io.ReaderAt
 	io.Closer
 }
 
 // Led described a Led of an device. The leds are counted left-to-right and can be OR'ed together.
-type Led uint
+type Led uint8
 
 const (
 	Led1 Led = 1 << iota
@@ -54,6 +55,12 @@ type Device interface {
 	// device for hotplug events you will get notified whenever this bitmask changes.
 	// See the WatchEvent event for more information.
 	Available(iface FeatureKind) bool
+
+	// SetIRFull sets
+	IRFull() bool
+
+	// SetIRFull sets
+	SetIRFull(fullreport bool)
 
 	// LED reads the LED state for the given LED.
 	//
@@ -98,9 +105,12 @@ type Poller[T any] interface {
 	// It handles ErrRetry internally and returns the first valid event or error.
 	Wait(timeout time.Duration) (T, error)
 
+	// Wait waits for an event up to the specified timeout. A negative timeout is considered forever.
+	WaitReadable(timeout time.Duration) error
+
 	// Handle continuously polls and calls `yield` with new events.
 	// It blocks forever and should be used in a new goroutine.
-	Handle(yield func(T))
+	Handle(yield func(T)) error
 
 	// Stream continuously polls and writes events into ch. It is a wrapper for Handle.
 	// It blocks forever and should be used in a new goroutine.

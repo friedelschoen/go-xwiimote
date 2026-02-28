@@ -135,36 +135,33 @@ func watchDevice(dev wiimote.Device) {
 		case *wiimote.EventAccel:
 			lastAccel = ev
 		case *wiimote.EventKey:
-			if ev.State == wiimote.StateRepeated {
-				break
-			}
 			if ev.Code != wiimote.KeyDown {
 				hold = time.Time{}
-				if ev.State == wiimote.StatePressed {
+				if ev.Pressed {
 					hold = time.Now()
 				}
 			}
 			switch ev.Code {
 			case wiimote.KeyA:
-				mouse.Key(uinput.ButtonLeft, ev.State != wiimote.StateReleased)
+				mouse.Key(uinput.ButtonLeft, ev.Pressed)
 			case wiimote.KeyB:
-				mouse.Key(uinput.ButtonRight, ev.State != wiimote.StateReleased)
+				mouse.Key(uinput.ButtonRight, ev.Pressed)
 			case wiimote.KeyHome:
-				mouse.Key(uinput.KeyLeftmeta, ev.State != wiimote.StateReleased)
+				mouse.Key(uinput.KeyLeftmeta, ev.Pressed)
 			case wiimote.KeyLeft:
-				mouse.Key(uinput.ButtonBack, ev.State != wiimote.StateReleased)
+				mouse.Key(uinput.ButtonBack, ev.Pressed)
 			case wiimote.KeyRight:
-				mouse.Key(uinput.ButtonForward, ev.State != wiimote.StateReleased)
+				mouse.Key(uinput.ButtonForward, ev.Pressed)
 			case wiimote.KeyMinus:
-				mouse.Key(uinput.KeyVolumedown, ev.State != wiimote.StateReleased)
+				mouse.Key(uinput.KeyVolumedown, ev.Pressed)
 			case wiimote.KeyPlus:
-				mouse.Key(uinput.KeyVolumeup, ev.State != wiimote.StateReleased)
+				mouse.Key(uinput.KeyVolumeup, ev.Pressed)
 			case wiimote.KeyTwo:
-				mouse.Key(uinput.KeyPlaypause, ev.State != wiimote.StateReleased)
+				mouse.Key(uinput.KeyPlaypause, ev.Pressed)
 			case wiimote.KeyOne:
-				mouse.Key(uinput.KeyNext, ev.State != wiimote.StateReleased)
+				mouse.Key(uinput.KeyNext, ev.Pressed)
 			case wiimote.KeyDown:
-				if ev.State == wiimote.StatePressed {
+				if ev.Pressed {
 					if frame.Valid {
 						pos := frame.Position
 						scroll = &pos

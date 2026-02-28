@@ -12,6 +12,10 @@ type memory struct {
 	common.UnbufferedFile
 }
 
+func (m memory) WriteAt(p []byte, off int64) (n int, err error) {
+	return 0, io.ErrShortWrite
+}
+
 func (m memory) Read(buf []byte) (int, error) {
 	n := 0
 	for n < len(buf) {

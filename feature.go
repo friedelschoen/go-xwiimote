@@ -36,6 +36,7 @@ type MemoryFeature interface {
 
 type MotionPlusFeature interface {
 	Feature
+
 	// SetMPNormalization sets Motion-Plus normalization and calibration values. The Motion-Plus sensor is very
 	// sensitive and may return really crappy values. This features allows to
 	// apply 3 absolute offsets x, y and z which are subtracted from any MP data
@@ -67,6 +68,7 @@ const (
 	FeatureCore FeatureKind = 1 << iota
 	FeatureAccel
 	FeatureIR
+	FeatureSpeaker
 	FeatureMotionPlus
 	FeatureNunchuck
 	FeatureClassicController
@@ -74,4 +76,6 @@ const (
 	FeatureProController
 	FeatureDrums
 	FeatureGuitar
+
+	FeatureSetCore = FeatureCore | FeatureAccel | FeatureIR | FeatureSpeaker
 )

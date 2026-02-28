@@ -394,3 +394,7 @@ func (dev *device) String() string {
 	w.WriteString(dev.Syspath())
 	return w.String()
 }
+
+func (dev *device) IRFull() bool { return false }
+
+func (dev *device) SetIRFull(fullreport bool) {}

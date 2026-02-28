@@ -69,11 +69,11 @@ func watchDevice(dev wiimote.Device, mapping map[wiimote.Key]uinput.Key) {
 		case *wiimote.EventKey:
 			if ev.Code == wiimote.KeyHome {
 				if rumbleif != nil {
-					rumbleif.Rumble(ev.State == wiimote.StatePressed)
+					rumbleif.Rumble(ev.Pressed)
 				}
 				continue
 			} else if ev.Code == wiimote.KeyTwo {
-				if ev.State == wiimote.StatePressed {
+				if ev.Pressed {
 					leds++
 					leds %= 16
 
@@ -86,7 +86,7 @@ func watchDevice(dev wiimote.Device, mapping map[wiimote.Key]uinput.Key) {
 			if !ok {
 				continue
 			}
-			kb.Key(realkey, ev.State != wiimote.StateReleased)
+			kb.Key(realkey, ev.Pressed)
 		case *wiimote.EventGone:
 			return
 		}

@@ -3,6 +3,7 @@ package common
 import (
 	"errors"
 	"log"
+	"syscall"
 	"time"
 
 	"github.com/friedelschoen/go-wiimote"
@@ -49,22 +50,61 @@ func (p *poller[T]) Poll() (T, bool, error) {
 	return p.drv.Poll()
 }
 
+func (p *poller[T]) WaitReadable(timeout time.Duration) error {
+	// Pak de fd vers; caching is fragiel als de driver fd’s kan vervangen.
+	fd := p.drv.FD()
+	p.fd = fd
+
+	if fd < 0 {
+		// Driver heeft (nog) geen pollbare fd
+		return nil
+	}
+
+	fds := []unix.PollFd{{
+		Fd:     int32(fd),
+		Events: unix.POLLIN,
+	}}
+
+	dur := -1
+	if timeout >= 0 {
+		dur = int(timeout.Milliseconds())
+	}
+
+	for {
+		n, err := unix.Poll(fds, dur)
+		if err != nil {
+			if err == syscall.EINTR {
+				continue
+			}
+			p.fd = -1
+			return err
+		}
+		if n == 0 {
+			// timeout
+			return nil
+		}
+		break
+	}
+
+	re := fds[0].Revents
+	if re&(unix.POLLNVAL) != 0 {
+		// fd ongeldig
+		p.fd = -1
+		return unix.EBADF
+	}
+	if re&(unix.POLLERR|unix.POLLHUP) != 0 {
+		// device hangup of error: laat caller beslissen wat te doen
+		return unix.EIO
+	}
+	return nil
+}
+
 func (p *poller[T]) Wait(timeout time.Duration) (T, error) {
 	for {
 		if p.wait {
-			if p.fd == -1 {
-				p.fd = p.drv.FD()
-			}
-			if p.fd >= 0 {
-				fds := [1]unix.PollFd{{
-					Fd:     int32(p.fd),
-					Events: unix.POLLIN,
-				}}
-				dur := -1
-				if timeout >= 0 {
-					dur = int(timeout.Milliseconds())
-				}
-				unix.Poll(fds[:], dur)
+			if err := p.WaitReadable(timeout); err != nil {
+				var zero T
+				return zero, err
 			}
 		}
 		ev, moredata, err := p.drv.Poll()
@@ -92,19 +132,15 @@ func (p *poller[T]) drain(yield func(T)) {
 	}
 }
 
-func (p *poller[T]) Handle(yield func(T)) {
+func (p *poller[T]) Handle(yield func(T)) error {
 	p.drain(yield)
 	for {
-		if p.fd == -1 {
-			p.fd = p.drv.FD()
+		if p.wait {
+			if err := p.WaitReadable(-1); err != nil {
+				return err
+			}
 		}
-		if p.fd >= 0 {
-			fds := [...]unix.PollFd{{
-				Fd:     int32(p.fd),
-				Events: unix.POLLIN,
-			}}
-			unix.Poll(fds[:], -1)
-		} else {
+		if p.fd < 0 {
 			time.Sleep(100 * time.Millisecond)
 		}
 		p.drain(yield)
