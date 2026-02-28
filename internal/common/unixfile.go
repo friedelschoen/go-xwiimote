@@ -7,6 +7,10 @@ import (
 
 type UnbufferedFile int
 
+func (fd UnbufferedFile) FD() int {
+	return int(fd)
+}
+
 func (fd UnbufferedFile) Read(b []byte) (int, error) {
 	return syscall.Read(int(fd), b)
 }
